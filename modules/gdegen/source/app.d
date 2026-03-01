@@ -118,6 +118,8 @@ void writeBuiltinSizes(GDEBindingWriter writer, JSONValue list) {
         dir =       Root directory to write the file in.
 */
 void writeGDEInterface(JSONValue[2] jsonIn, string dir) {
+    import generator.utils : findTypes;
+
     auto target = new GDEBindingWriter(buildPath(dir, "source/godot/core/gdextension/iface.d"));
     target.writeHeader(DDOC(
         "GDExtension Interface", 
@@ -132,9 +134,33 @@ void writeGDEInterface(JSONValue[2] jsonIn, string dir) {
     target.writenls();
     target.writeln("extern(C) @nogc nothrow:");
 
-    GDEType[] ifaceTypes = parseTypes(jsonIn[GDE_INTERFACE], GDE_INTERFACE);
-    foreach(type; ifaceTypes) {
+    // Parse types.
+    GDETypeRegistry ifaceTypes = parseTypes(jsonIn[GDE_INTERFACE], GDE_INTERFACE);
+    foreach(type; ifaceTypes.types) {
         target.writeType(type);
+    }
+
+    // Parse variant functions
+    GDEVariantType[] variantTypes = parseVariantTypes(jsonIn[GDE_INTERFACE], GDE_INTERFACE);
+    foreach(type; variantTypes) {
+        import std.format : format;
+
+        target.writeType(new GDEFunc("variant_from_%s".format(type.name), 
+            ifaceTypes.find("void"), 
+            [new GDEFuncParam("p_variant", ifaceTypes.find("GDExtensionUninitializedVariantPtr")), new GDEFuncParam("p_type", ifaceTypes.find("GDExtensionTypePtr"))]
+        ));
+
+        target.writeType(new GDEFunc("%s_from_variant".format(type.name), 
+            ifaceTypes.find("void"), 
+            [new GDEFuncParam("p_type", ifaceTypes.find("GDExtensionUninitializedTypePtr")), new GDEFuncParam("p_variant", ifaceTypes.find("GDExtensionVariantPtr"))]
+        ));
+
+        if (type.name != "object") {
+            target.writeType(new GDEFunc("%s_destroy".format(type.name), 
+                ifaceTypes.find("void"), 
+                [new GDEFuncParam("p_%s".format(type.name), ifaceTypes.find("GDExtensionTypePtr"))]
+            ));
+        }
     }
     target.flush();
 }

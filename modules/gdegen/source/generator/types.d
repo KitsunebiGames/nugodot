@@ -251,6 +251,57 @@ public:
 }
 
 /**
+    A variant type.
+*/
+class GDEVariantType : GDEType {
+private:
+    GDEEnumMember key_;
+
+public:
+
+    /**
+        The variant type enum key.
+    */
+    @property GDEEnumMember key() => key_;
+
+    /**
+        Constructs a new variant type.
+    */
+    this(string name, GDEEnumMember key) {
+        this.name = name;
+        this.key_ = key;
+    }
+
+    /**
+        Constructs a new variant type.
+    */
+    this(GDEEnumMember key) {
+        import std.string : toLower;
+
+        enum prefix_ = "GDEXTENSION_VARIANT_TYPE_";
+        this(key.name[prefix_.length..$].toLower(), key);
+    }
+
+    /**
+        Parses the type.
+    
+        Params:
+            json =      The JSON value to parse.
+            schema =    The schema being parsed.
+            registry =  The type registry.
+    */
+    override void parse(ref JSONValue json, int schema, ref GDETypeRegistry registry) { }
+
+    /**
+        Finalizes the type.
+
+        Params:
+            registry =  The type registry.
+    */
+    override void finalize(GDETypeRegistry registry) { }
+}
+
+/**
     A named member of a type.
 */
 abstract
@@ -466,7 +517,7 @@ public:
             case INTERFACE_SCHEMA:
                 this.name = json["name"].str;
                 foreach(mjson; json["values"].array) {
-                    auto member = new GDEEnumMember();
+                    auto member = new GDEEnumMember(this);
                     member.parse(mjson, schema, registry);
                     this.members_ ~= member;
                 }
@@ -492,6 +543,7 @@ public:
 */
 class GDEEnumMember : GDEMember {
 private:
+    GDEEnum parent_;
     GDEType type_;
     string value_;
 
@@ -506,6 +558,21 @@ public:
         Value of the type.
     */
     override @property string value() => value_;
+
+    /**
+        The parent enum that this member belongs to.
+    */
+    @property GDEEnum parent() => parent_;
+
+    /**
+        Constructs a new enum member.
+
+        Params:
+            parent = The enum this member belongs to.
+    */
+    this(GDEEnum parent) {
+        this.parent_ = parent;
+    }
 
     /**
         Parses the type.
@@ -891,6 +958,20 @@ public:
     @property GDEFuncParam[] params() => params_;
 
     /**
+        Constructor.
+    */
+    this() { }
+
+    /**
+        Constructor.
+    */
+    this(string name, GDEType returnType, GDEFuncParam[] params) {
+        this.name = name;
+        this.return_ = returnType;
+        this.params_ = params;
+    }
+
+    /**
         Parses the type.
     
         Params:
@@ -967,6 +1048,19 @@ public:
         Default value of the parameter, can be empty.
     */
     override @property string value() => value_;
+
+    /**
+        Constructor.
+    */
+    this() { }
+
+    /**
+        Constructor.
+    */
+    this(string name, GDEType type) {
+        this.name = name;
+        this.type_ = type;
+    }
 
     /**
         Parses the type.

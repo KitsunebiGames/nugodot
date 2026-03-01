@@ -1,13 +1,14 @@
 module godot.variant.string;
 import godot.core.gdextension.iface;
+import godot.core.gdextension.variant_size;
 
 /**
     A godot string.
 */
-struct GDString {
+struct String {
 private:
 @nogc:
-    void[32] data_;
+    void[VARIANT_SIZE_STRING] data_;
 
 public:
 
@@ -22,14 +23,14 @@ public:
 
     /// Destructor
     ~this() {
-        // string_destroy(cast(GDExtensionVariantPtr)&this);
+        string_destroy(&this);
     }
 
     /**
-        Constructs a new variant from a pointer.
+        Makes a copy of the string.
     */
-    this(ref return scope GDString other) {
-
+    this(ref return scope String other) {
+        this.data_[0..$] = other.data_[0..$];
     }
 
     /**
@@ -68,22 +69,22 @@ public:
 /**
     A string name.
 */
-struct GDStringName {
+struct StringName {
 private:
 @nogc:
-    void[size_t.sizeof] data_;
+    void[VARIANT_SIZE_STRINGNAME] data_;
 
 public:
 
     /// Destructor.
     ~this() {
-        // string_name_destroy(cast(GDExtensionVariantPtr)&this);
+        string_name_destroy(&this);
     }
 
     /**
         Constructs a new StringName.
     */
     this(string name) {
-        string_name_new_with_utf8_chars_and_len(cast(GDExtensionStringNamePtr)&this, name.ptr, cast(int)name.length);
+        string_name_new_with_utf8_chars_and_len(&this, name.ptr, cast(int)name.length);
     }
 }

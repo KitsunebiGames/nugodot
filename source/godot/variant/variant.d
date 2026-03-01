@@ -1,12 +1,14 @@
 module godot.variant.variant;
 import godot.core.gdextension.iface;
+import godot.core.gdextension.variant_size;
 import godot.core.gdextension.utils;
+import godot.variant.string;
 import numem;
 
 /**
     Variant type tags.
 */
-enum GDVariantType {
+enum VariantType {
     NIL = 0,
     BOOL = 1,
     INT = 2,
@@ -51,10 +53,10 @@ enum GDVariantType {
 /**
     A godot variant type.
 */
-struct GDVariant {
+struct Variant {
 private:
 @nogc:
-    void[32] data_;
+    void[VARIANT_SIZE_VARIANT] data_;
     @property GDExtensionVariantPtr ptr() => cast(GDExtensionVariantPtr)data_.ptr;
 
 public:
@@ -62,15 +64,15 @@ public:
     /**
         The type of this variant.
     */
-    @property GDVariantType type() => cast(GDVariantType)variant_get_type(ptr);
+    @property VariantType type() => cast(VariantType)variant_get_type(ptr);
 
     /**
-        Makes a new nil variant.
+        The name of the type stored in the variant.
     */
-    static GDVariant makeNil() {
-        GDVariant v = void;
-        variant_new_nil(cast(GDExtensionVariantPtr)&v);
-        return v;
+    @property String typeName() {
+        String value;
+        variant_get_type_name(cast(GDExtensionVariantType)type, &value);
+        return value;
     }
 
     /// Destructor
@@ -88,7 +90,7 @@ public:
     /**
         Makes a copy of the variant.
     */
-    this(ref return scope GDVariant other) {
+    this(ref return scope Variant other) {
         variant_new_copy(this.ptr, other.ptr);
     }
 
@@ -99,7 +101,28 @@ public:
             value = The new value to give the variant.
     */
     this(double value) {
-        // variant_from_float(this.ptr, cast(GDExtensionTypePtr)&value);
+        variant_from_float(this.ptr, &value);
+    }
+
+    /**
+        Constructs a variant from a D string.
+
+        Params:
+            value = The new value to give the variant.
+    */
+    this(string value) {
+        String str = value;
+        variant_from_string(&this, &str);
+    }
+
+    /**
+        Constructs a variant from a string.
+
+        Params:
+            value = The new value to give the variant.
+    */
+    this(String value) {
+        variant_from_string(&this, &value);
     }
 
     /**
@@ -111,9 +134,9 @@ public:
         Returns:
             A new $(D GDVariant) with the contents copied from the source.
     */
-    GDVariant duplicate(bool deep) {
-        GDVariant result;
-        // variant_duplicate(cast(GDExtensionConstVariantPtr)&result, cast(GDExtensionConstVariantPtr)&this, deep);
+    Variant duplicate(bool deep) {
+        Variant result;
+        variant_duplicate(&result, &this, deep);
         return result;
     }
 }

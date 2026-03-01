@@ -1,5 +1,6 @@
 module generator.parser;
 import generator.types;
+import generator.utils;
 import std.file : remove, exists, readText;
 import std.process : execute;
 
@@ -36,8 +37,15 @@ JSONValue[2] parseGDEJson(string exec) {
 
 /**
     Parses types from the given JSON.
+
+    Params:
+        json =      The JSON to parse.
+        schema =    The schema of the JSON.
+
+    Returns:
+        The types found in the json object.
 */
-GDEType[] parseTypes(JSONValue json, int schema) {
+GDETypeRegistry parseTypes(JSONValue json, int schema) {
     GDETypeRegistry registry = new GDETypeRegistry();
     final switch(schema) {
         case GDE_INTERFACE:
@@ -102,5 +110,40 @@ GDEType[] parseTypes(JSONValue json, int schema) {
     }
 
     registry.finalize();
-    return registry.types();
+    return registry;
+}
+
+/**
+    Parses the variant types available.
+
+    Params:
+        json =      The JSON to parse.
+        schema =    The schema of the JSON.
+
+    Returns:
+        The variants found in the json object.
+*/
+GDEVariantType[] parseVariantTypes(JSONValue json, int schema) {
+    GDETypeRegistry registry = new GDETypeRegistry();
+    final switch(schema) {
+        case GDE_INTERFACE:
+            foreach(type_t; json["types"].array) {
+                if (type_t["kind"].str == "enum" && type_t["name"].str == "GDExtensionVariantType") {
+
+                    auto enum_t = new GDEEnum();
+                    enum_t.parse(type_t, GDE_INTERFACE, registry);
+                    foreach(key; enum_t.members[1..$-1]) {
+                        registry.add(new GDEVariantType(cast(GDEEnumMember)key));
+                    }
+                    break;
+                }
+            }
+            break;
+        
+        case GDE_API:
+            break;
+    }
+
+    registry.finalize();
+    return cast(GDEVariantType[])registry.types().findTypes!GDEVariantType;
 }

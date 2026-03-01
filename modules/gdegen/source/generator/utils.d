@@ -26,6 +26,21 @@ string[] toParamList(GDEFuncParam[] params, bool useNames) {
 }
 
 /**
+    Finds all the types in the given slice that are
+    implicitly castable to $(D T).
+
+    Params:
+        slice = The slice to search in.
+*/
+T[] findTypes(T, U)(U[] slice) {
+    T[] result;
+    foreach(item; slice)
+        if (cast(T)item)
+            result ~= cast(T)item;
+    return result;
+}
+
+/**
     Peeks the given amount of characters from the given buffer.
 
     Params:
