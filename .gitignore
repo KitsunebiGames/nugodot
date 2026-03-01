@@ -20,6 +20,10 @@ source/godot/*
 source/godot/core/gdextension/iface.d
 source/godot/core/gdextension/variant_size.d
 
+# Ignore godot generated files if they sneak in
+extension_api.json
+gdextension_interface.json
+
 # Redub Junk
 .ldc2_cache
 

@@ -118,7 +118,7 @@ void writeBuiltinSizes(GDEBindingWriter writer, JSONValue list) {
         dir =       Root directory to write the file in.
 */
 void writeGDEInterface(JSONValue[2] jsonIn, string dir) {
-    import generator.utils : findTypes;
+    string precision = jsonIn[GDE_API]["header"]["precision"].str;
 
     auto target = new GDEBindingWriter(buildPath(dir, "source/godot/core/gdextension/iface.d"));
     target.writeHeader(DDOC(
@@ -131,6 +131,7 @@ void writeGDEInterface(JSONValue[2] jsonIn, string dir) {
     target.writenls();
     target.writeAlias("char16_t", "wchar");
     target.writeAlias("char32_t", "dchar");
+    target.writeAlias("gd_float", precision == "single" ? "float" : "double");
     target.writenls();
     target.writeln("extern(C) @nogc nothrow:");
 
