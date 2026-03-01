@@ -1,0 +1,5 @@
+name "gdegen"
+targetPath "out/"
+
+dependency "numem" version="*"
+dependency "commandr" version=">=1.1.0"

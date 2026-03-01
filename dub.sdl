@@ -1,0 +1,22 @@
+name "nugodot-d"
+description "Godot GDExtension for D"
+authors "Luna"
+copyright "Copyright © 2026, Luna"
+license "BSL-1.0"
+
+subPackage "modules/gdegen"
+
+dependency "numem" version="~>1.6.4"
+targetPath "out/"
+
+buildRequirements "silenceWarnings"
+
+configuration "build" {
+    targetType "dynamicLibrary"
+    preGenerateCommands "dub run :gdegen -- --dir=$PACKAGE_DIR"
+}
+
+configuration "rebuild" {
+    targetType "dynamicLibrary"
+    preGenerateCommands "dub run :gdegen -- --force --dir=$PACKAGE_DIR"
+}

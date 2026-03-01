@@ -1,0 +1,28 @@
+.dub
+docs.json
+__dummy.html
+docs/
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
+
+out/
+dub.selections.json
+__dummy_docs/
+
+# Ignore auto-generated files, but keep hand written ones.
+gde.lock
+source/godot/*
+!source/godot/core/
+!source/godot/variant/
+source/godot/core/gdextension/iface.d
+source/godot/core/gdextension/variant_size.d
+
+# Redub Junk
+.ldc2_cache
+
+# Other Junk
+.DS_Store
+.vscode/
