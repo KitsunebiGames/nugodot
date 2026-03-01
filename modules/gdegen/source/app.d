@@ -14,15 +14,16 @@ int main(string[] args) {
     auto app = new Program("gde-gen", "1.0")
         .summary("Generator for DLang GDExtension bindings.")
         .author("Luna the Foxgirl")
-        .add(new Option("g", "godot", "Path to the godot executable to use").defaultValue("godot"))
         .add(new Option("d", "dir", "Root directory to work in.").defaultValue("."))
         .add(new Flag("f", "force", "Force regenerate the bindings."))
         .parse(args);
 
+    // Find godot
+    string godotPath = environment.get("GODOT_PATH", "godot");
     if (app.flag("force") || !exists("gde.lock")) {
         JSONValue[2] jsonIn;
         try {
-            jsonIn = parseGDEJson(app.option("godot"));
+            jsonIn = parseGDEJson(godotPath);
         } catch(ErrnoException ex) {
             stderr.writeln(ex.msg);
             return ex.errno;
