@@ -103,9 +103,21 @@ if (is(T : GDEObject)) {
     Params:
         func = Alias to the function to test.
 */
-template isPropertyFunc(alias func) {
+template isPropertyFunc(T, alias func) {
     enum isPropertyAttrib(string attrib) = attrib == "@property";
-    enum isPropertyFunc = Filter!(isPropertyAttrib, __traits(getFunctionAttributes, func)).length != 0;
+    enum isPropertyFunc = isMethod!(T, func) && Filter!(isPropertyAttrib, __traits(getFunctionAttributes, __traits(getMember, T, func))).length != 0;
+}
+
+/**
+    Gets whether the given member is a method.
+
+    Params:
+        T =     The class to check
+        func =  Name of the member
+*/
+template isMethod(T, string member) {
+    enum isMethod = is(typeof(__traits(getMember, T, member)) == return) ||
+        is(FunctionTypeOf!(__traits(getMember, T, member)) == return);
 }
 
 /**
@@ -279,7 +291,6 @@ template toSnakeCase(string value) {
         return null;
     }(value);
 }
-
 
 
 //

@@ -63,6 +63,35 @@ GDClassShutdownFunc[] gde_get_class_shutdown_functions() @nogc nothrow {
 }
 
 /**
+    Gets an instance of the given function for the given type,
+    while respecting virtual functions.
+
+    Notes:
+        The function returned is stripped of all of its normal attributes,
+        this function is **UNSAFE** unless you know what you're doing.
+
+    Params:
+        instance =  The class instance.
+        method =    The method to get.
+*/
+auto gde_get_func_instance(T, string method)(Object instance) @system @nogc nothrow {
+    alias methodT = __traits(getMember, T, method);
+    alias rt = returnTypeOf!methodT function(T, parametersOf!methodT) @nogc nothrow;
+
+    static if (__traits(isVirtualMethod, methodT)) {
+        enum vtblOffset = __traits(getVirtualIndex, methodT);
+        return (Object p_instance) {
+            return cast(rt)p_instance.__vptr[vtblOffset];
+        }(cast(Object)instance);
+    } else {
+        pragma(mangle, methodT.mangleof)
+        static extern returnTypeOf!(methodT) __func (T, parametersOf!methodT) @nogc nothrow;
+
+        return cast(rt)&__func;
+    }
+}
+
+/**
     Wraps a given method of a class with a godot ptrcall wrapper.
 
     Params:
