@@ -124,6 +124,12 @@ GDETypeRegistry parseTypes(JSONValue json, int schema) {
                 enum_t.parse(type_t, GDE_API, registry);
                 registry.add(enum_t);
             }
+
+            foreach(type_t; parallel(json["singletons"].array)) {
+                auto singleton_t = new GDEClassSingleton();
+                singleton_t.parse(type_t, GDE_API, registry);
+                registry.add(singleton_t);
+            }
             break;
     }
 

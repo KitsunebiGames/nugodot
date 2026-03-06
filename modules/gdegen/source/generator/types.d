@@ -4,6 +4,8 @@ import generator.utils;
 import generator.ddoc;
 import std.string;
 import std.json;
+import std.traits;
+import std.meta;
 
 enum INTERFACE_SCHEMA = 0;
 enum API_SCHEMA = 1;
@@ -178,6 +180,13 @@ public:
 }
 
 /**
+    A type rewriter following given rewriting rules.
+*/
+class GDETypeRewriter {
+
+}
+
+/**
     Base-class of GDExtension type info.
 */
 abstract
@@ -203,16 +212,6 @@ protected:
     }
 
 public:
-
-    /**
-        Name as a D compatible identifier.
-    */
-    @property string d_name() => name;
-
-    /**
-        Name as a D compatible identifier, with subclassing.
-    */
-    @property string d_full_name() => d_name;
 
     /**
         Parses godot types.
@@ -316,9 +315,19 @@ public:
     @property string name() => name_;
 
     /**
+        Name as a D compatible identifier.
+    */
+    @property string d_name() => name;
+
+    /**
+        Name as a D compatible identifier, with subclassing.
+    */
+    @property string d_full_name() => d_name;
+
+    /**
         DDOC documentation for the type.
     */
-    final @property DDOC ddoc() => ddoc_;
+    @property DDOC ddoc() => ddoc_;
 
     /**
         Parses the type.
@@ -339,6 +348,14 @@ public:
     abstract void finalize(GDETypeRegistry registry);
 
     /**
+        Performs type rewriting on the type.
+
+        Params:
+            registry =  The type registry.
+    */
+    void rewrite(GDETypeRegistry registry) { }
+
+    /**
         Gets a string representation of the type.
     */
     override
@@ -346,6 +363,81 @@ public:
         return name;
     }
 }
+
+/**
+    A type re-written by rewriting rules.
+*/
+class GDERewriteType(T) : T
+if (is(T : GDEType)) {
+private:
+    string o_name;
+    T type_;
+
+public:
+
+    /**
+        The type that this type rewrites.
+    */
+    @property T type() => type_;
+
+    /**
+        Name as a D compatible identifier.
+    */
+    override @property string name() => type_.name;
+
+    /**
+        Name as a D compatible identifier.
+    */
+    override @property string d_name() => o_name;
+
+    /**
+        DDOC documentation for the type.
+    */
+    override @property DDOC ddoc() => type_.ddoc;
+
+    /**
+        Constructs a new rewritten type.
+
+        Params:
+            type = The original type
+            name = The new name for the type.
+    */
+    this(T type, string name) {
+        super();
+        this.type_ = type;
+        this.o_name = name;
+    }
+
+    // Derived members.
+    static foreach(derived; __traits(derivedMembers, T)) {
+        import std.format : format;
+
+        static if (is(FunctionTypeOf!(__traits(getMember, T, derived)))) {
+
+            static if (derived == "type") { }
+            else static if (derived == "d_name") { }
+            else static if (derived == "ddoc") { }
+            else static if (__traits(isVirtualMethod, __traits(getMember, T, derived))) {
+                static foreach (overload; __traits(getOverloads, T, derived)) {
+                    mixin(q{
+                        override %s ReturnType!overload %s(Parameters!overload) {
+                            return type_.%s(__traits(parameters));
+                        }
+                    }.format(getFuncAttribs!overload, derived, derived));
+                }
+            }
+        }
+    }
+
+    // Helper that gets function attributes.
+    template getFuncAttribs(alias method) {
+        enum getFuncAttribs = () {
+            return [__traits(getFunctionAttributes, method)].join(" ");
+        }();
+    }
+}
+
+alias GDERewriteTest = GDERewriteType!GDEClass;
 
 /**
     A variant type.
@@ -360,6 +452,9 @@ public:
         The variant type enum key.
     */
     @property GDEEnumMember key() => key_;
+
+    /// Base ctor
+    this() { }
 
     /**
         Constructs a new variant type.
@@ -443,6 +538,7 @@ public:
     */
     override void finalize(GDETypeRegistry registry) { }
 }
+
 /**
     A typed dictionary.
 */
@@ -1473,7 +1569,7 @@ public:
     /**
         Whether this method is an override.
     */
-    @property bool isOverride() => parent_.inherits ? parent_.inherits.hasMethod(d_name) : false;
+    @property bool isOverride() => isVirtual && (parent_.inherits ? parent_.inherits.hasMethod(d_name) : false);
 
     /**
         The hash of the method.
@@ -1657,6 +1753,61 @@ public:
 }
 
 /**
+    A singleton applied to a class.
+*/
+class GDEClassSingleton : GDEMember {
+private:
+    string typeName_;
+    GDEClass type_;
+
+public:
+
+    /**
+        Type of the singleton.
+    */
+    override @property GDEType type() => cast(GDEType)type_;
+
+    /// Base ctor
+    this() { }
+
+    /**
+        Parses the type.
+    
+        Params:
+            json =      The JSON value to parse.
+            schema =    The schema being parsed.
+            registry =  The type registry.
+    */
+    override
+    void parse(ref JSONValue json, int schema, ref GDETypeRegistry registry) {
+        this.ddoc_ = parseDocs(json);
+        switch(schema) {
+            case API_SCHEMA:
+                this.name = json["name"].str;
+                this.typeName_ = json["type"].str;
+                return;
+
+            default:
+                return;
+        }
+    }
+
+    /**
+        Finalizes the type.
+
+        Params:
+            registry =  The type registry.
+    */
+    override
+    void finalize(GDETypeRegistry registry) {
+        if (typeName_) {
+            this.type_ = cast(GDEClass)registry.find(typeName_);
+            this.type_.singleton = this;
+        }
+    }
+}
+
+/**
     A class.
 */
 class GDEClass : GDEAggregate {
@@ -1674,6 +1825,7 @@ private:
     GDESignal[] signals_;
     GDEProperty[] properties_;
     GDEType[] used_;
+    GDEClassSingleton singleton_;
 
 public:
     override @property GDEMember[] members() => [];
@@ -1719,6 +1871,14 @@ public:
     @property ref GDEProperty[] properties() => properties_;
 
     /**
+        Singleton attached to the class.
+    */
+    @property GDEClassSingleton singleton() => singleton_;
+    @property void singleton(GDEClassSingleton value) {
+        this.singleton_ = value;
+    }
+
+    /**
         Whether the class can be instantiated.
     */
     @property ref bool isInstantiable() => isInstantiable_;
@@ -1727,6 +1887,17 @@ public:
         The API Type.
     */
     @property string apiType() => apiType_;
+
+    /**
+        Whether the class has any protected methods.
+    */
+    @property bool hasProtected() {
+        foreach(method; methods_) {
+            if (method.isProtected)
+                return true;
+        }
+        return false;
+    }
 
     /**
         Constructor.

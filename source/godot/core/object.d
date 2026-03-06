@@ -157,6 +157,9 @@ if (is(T : GDEObject)) {
         StringName __className = StringName(classNameOf!T);
         object_set_instance(ptr, &__className, cast(void*)obj);
         object_set_instance_binding(ptr, __godot_class_library, cast(void*)obj, &__nu_gde_instance_callbacks!T);
+        static if (is(typeof(() => T.init.__ctor())))
+            obj.__ctor();
+
         return obj;
     } else {
 

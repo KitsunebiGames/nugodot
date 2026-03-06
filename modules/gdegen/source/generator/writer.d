@@ -408,6 +408,20 @@ public:
             this.writefln("alias %s = %s function(%s);", fp_t.name, fp_t.returnType.name, fp_t.params.toParamList(true).join(", "));
             return;
         }
+
+        // Singletons.
+        if (auto singleton_t = cast(GDEClassSingleton)type) {
+
+            this.writenls();
+            this.writeDDOC(singleton_t.ddoc);
+            this.writefln(
+                "static @property %s instance() => gde_get_singleton!(%s)(\"%s\");",
+                singleton_t.type.d_name,
+                singleton_t.type.d_name,
+                singleton_t.name
+            );
+            return;
+        }
         
         // Bound class methods
         if (auto mthd_t = cast(GDEMethod)type) {
@@ -417,21 +431,45 @@ public:
             this.writenls();
             this.writeDDOC(mthd_t.ddoc);
 
-            if (mthd_t.isOverride)
-                this.write("override ");
 
-            this.writef("%s %s(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, mthd_t.params.toParamList(true).join(", "));
-            this.beginBlock();
-                this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
-                this.writeln("if (!__bind)");
-                this.indent(4);
-                    this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
-                this.unindent();
-                if (mthd_t.params.length > 0)
-                    this.writefln("return gde_ptrcall!(%s)(ptr, __bind, %s);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
-                else
-                    this.writefln("return gde_ptrcall!(%s)(ptr, __bind);", mthd_t.returnType.d_full_name);
-            this.endBlock();
+            if (mthd_t.isStatic)
+                this.write("static ");
+
+            if (mthd_t.isVararg) {
+                string[] params_ = mthd_t.params.toParamList(true)~["Args args"];
+                this.writef("%s %s(Args...)(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, params_.join(", "));
+                this.beginBlock();
+                    this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
+                    this.writeln("if (!__bind)");
+                    this.indent(4);
+                        this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
+                    this.unindent();
+                    if (mthd_t.params.length > 0)
+                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind, %s, args);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
+                    else
+                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind, args);", mthd_t.returnType.d_full_name);
+                this.endBlock();
+            } else {
+                if (!mthd_t.isStatic) {
+                    if (!mthd_t.isVirtual)
+                        this.write("final ");
+                    else if (mthd_t.isOverride)
+                        this.write("override ");
+                }
+
+                this.writef("%s %s(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, mthd_t.params.toParamList(true).join(", "));
+                this.beginBlock();
+                    this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
+                    this.writeln("if (!__bind)");
+                    this.indent(4);
+                        this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
+                    this.unindent();
+                    if (mthd_t.params.length > 0)
+                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind, %s);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
+                    else
+                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind);", mthd_t.returnType.d_full_name);
+                this.endBlock();
+            }
             return;
         }
 
@@ -501,7 +539,8 @@ public:
 
         // Classes
         if (auto class_t = cast(GDEClass)type) {
-            
+            bool p_class_protected = class_t.hasProtected;
+
             // This is implemeted by hand.
             if (class_t.name == "GDEObject")
                 return;
@@ -514,17 +553,27 @@ public:
 
             this.writef("class %s : %s ", class_t.d_full_name, class_t.inherits ? class_t.inherits.d_full_name : "GDEObject");
             this.beginBlock();
-            this.beginVisibility("protected");
-            this.beginVisibility("@nogc");
+            if (p_class_protected) {
+                this.beginVisibility("protected");
+                this.beginVisibility("@nogc");
+            } else {
+                this.beginVisibility("public");
+                this.beginVisibility("@nogc");
+            }
             
             // Write methods
             foreach(method_t; class_t.methods) {
                 if (method_t.isProtected)
                     this.writeType(method_t);
             }
+            
+            if (p_class_protected) { 
+                this.writenls();
+                this.beginVisibility("public");
+            }
 
-            this.writenls();
-            this.beginVisibility("public");
+            if (class_t.singleton)
+                this.writeType(class_t.singleton);
 
             // Write class constants
             foreach(const_t; class_t.constants) {

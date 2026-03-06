@@ -217,6 +217,7 @@ void writeAPI(JSONValue[2] jsonIn, string dir) {
 
             target.writeImport("godot.core.object");
             target.writeImport("godot.core.gdextension");
+            target.writeImport("godot.core.lifetime");
             target.writeImport("godot.core.wrap");
             target.writeImport("godot.core");
             target.writeImport("godot.variant");
@@ -232,7 +233,6 @@ void writeAPI(JSONValue[2] jsonIn, string dir) {
             }
 
             target.writeType(class_t);
-
             target.flush();
         }
     }

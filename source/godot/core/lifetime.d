@@ -4,8 +4,9 @@ import godot.core.object;
 import godot.core.traits;
 import godot.variant;
 
-import numem.core.math;
-import numem.lifetime;
+public import numem.core.math;
+public import numem.core.lifetime;
+public import numem.lifetime;
 
 /**
     Constructs a new type using the godot allocator.
@@ -23,7 +24,12 @@ Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
             // Base godot objects.
             StringName className = StringName(classNameOf!T);
             auto ptr = classdb_construct_object2(&className);
-            return gde_get!T(ptr);
+            auto obj_ = gde_get!T(ptr);
+
+            // Call our constructor.
+            static if (is(T.__ctor))
+                obj_.__ctor(args);
+            return obj_;
 
         } else static if (is(T PT == super)) {
     

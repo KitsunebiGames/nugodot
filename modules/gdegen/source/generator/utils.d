@@ -35,9 +35,14 @@ string[] toParamList(GDEFuncParam[] params, bool useNames) {
         An array of parameter names.
 */
 string[] toParamNames(GDEFuncParam[] params) {
+    import std.conv : text;
+
     string[] result;
-    foreach(param; params) {
-        result ~= param.name;
+    foreach(i, param; params) {
+        if (param.name)
+            result ~= param.name;
+        else
+            result ~= "param"~i.text;
     }
     return result;
 }

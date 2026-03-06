@@ -5,9 +5,9 @@ module godot.core.wrap;
 import godot.core.gdextension;
 import godot.core.object;
 import godot.core.traits;
+import godot.core.lifetime;
 import godot.variant;
 import numem.core.hooks;
-import numem.core.lifetime;
 
 
 /**
@@ -327,6 +327,22 @@ GDExtensionPropertyInfo gde_make_property_info(T)(string name, uint hint = 0, st
         hint_string: p_hint_string,
         usage: usageFlags,
     );
+}
+
+/**
+    Gets a singleton by name.
+
+    Params:
+        name = The name of the singleton to get.
+    
+    Returns:
+        The singleton if successful,
+        $(D null) otherwise.
+*/
+T gde_get_singleton(T)(string name)
+if (is(T : GDEObject)) {
+    StringName p_name = StringName(name);
+    return gde_get!T(global_get_singleton(&p_name));
 }
 
 /**
