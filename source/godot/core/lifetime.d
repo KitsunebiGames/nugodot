@@ -57,11 +57,59 @@ Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
     Params:
         value = The given value to free.
 */
-void gd_delete(T)(ref Ref!T value) @safe @nogc {
+void gd_delete(T)(ref T value) @safe @nogc {
+    import numem.core.hooks : nu_free;
     static if (is(T : GDEObject)) {
         object_destroy(value.value_ptr);
+        nogc_delete(value);
+    } else {
+        static if (isPointer!T)
+            T* p_value = value;
+        else
+            T* p_value = &value;
+
+        static if (is(T == Variant))
+            variant_destroy(p_value);
+        else static if(is(T == StringName))
+            string_name_destroy(p_value);
+        else static if(is(T == NodePath))
+            node_path_destroy(p_value);
+        else static if(is(T == RID))
+            rid_destroy(p_value);
+        else static if(is(T == Callable))
+            callable_destroy(p_value);
+        else static if(is(T == Signal))
+            signal_destroy(p_value);
+        else static if(is(T == Dictionary!U, U...))
+            signal_destroy(p_value);
+        else static if(is(T == Array!U, U...))
+            array_destroy(p_value);
+        else static if(is(T == PackedByteArray))
+            packed_byte_array_destroy(p_value);
+        else static if(is(T == PackedInt32Array))
+            packed_int32_array_destroy(p_value);
+        else static if(is(T == PackedInt64Array))
+            packed_int64_array_destroy(p_value);
+        else static if(is(T == PackedFloat32Array))
+            packed_float32_array_destroy(p_value);
+        else static if(is(T == PackedFloat64Array))
+            packed_float64_array_destroy(p_value);
+        else static if(is(T == PackedVector2Array))
+            packed_vector2_array_destroy(p_value);
+        else static if(is(T == PackedVector3Array))
+            packed_vector3_array_destroy(p_value);
+        else static if(is(T == PackedVector4Array))
+            packed_vector4_array_destroy(p_value);
+        else static if(is(T == PackedColorArray))
+            packed_color_array_destroy(p_value);
+        else static if(is(T == PackedStringArray))
+            packed_string_array_destroy(p_value);
+
+        static if (isPointer!T)
+            nu_free(value);
+        
+        value = T.init;
     }
-    nogc_delete(value);
 }
 
 /**

@@ -104,10 +104,32 @@ template variantTypeOf(T) {
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_CALLABLE;
     else static if (is(T == Signal))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_SIGNAL;
-    else static if (is(T == Dictionary) || is(T == TypedDictionary!U, U))
+    else static if (is(T == TypedDictionary!U, U...))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_DICTIONARY;
-    else static if (is(T == Array) || is(T == TypedArray!U, U))
+    else static if (is(T == TypedArray!U, U))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_ARRAY;
+    else static if (is(Unref!T == PackedByteArray))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_BYTE_ARRAY;
+    else static if (is(Unref!T == PackedInt32Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_INT32_ARRAY;
+    else static if (is(Unref!T == PackedInt64Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY;
+    else static if (is(Unref!T == PackedFloat32Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT32_ARRAY;
+    else static if (is(Unref!T == PackedFloat64Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT64_ARRAY;
+    else static if (is(Unref!T == PackedVector2Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY;
+    else static if (is(Unref!T == PackedVector3Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR3_ARRAY;
+    else static if (is(Unref!T == PackedVector4Array))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR4_ARRAY;
+    else static if (is(Unref!T == PackedColorArray))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_COLOR_ARRAY;
+    else static if (is(Unref!T == PackedStringArray))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_STRING_ARRAY;
+    else static if (is(T == Variant))
+        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VARIANT_MAX;
     else
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_NIL;
 }

@@ -1,9 +1,10 @@
 module godot.variant.string;
+import godot.variant.variant;
 import godot.core.gdextension.iface;
 import godot.core.gdextension.variant_size;
+import godot.core.wrap;
 import numem.core.memory;
 import numem.core.hooks;
-import godot.variant.variant;
 
 /**
     A godot string.
@@ -183,6 +184,11 @@ private:
 
 public:
 
+    /**
+        The length of the StringName.
+    */
+    @property size_t length() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "length", 3173160232, GDExtensionInt)(&this);
+
     /// Destructor.
     ~this() {
         string_name_destroy(&this);
@@ -239,7 +245,9 @@ void gde_free_string_name()(auto ref StringName* name) @nogc nothrow {
     if (name) {
         string_name_destroy(name);
         nu_free(name);
-        name = null;
+
+        static if (__traits(isRef, name))
+            name = null;
     }
 }
 
@@ -252,6 +260,21 @@ private:
     void[VARIANT_SIZE_NODEPATH] data;
 
 public:
+
+    /**
+        Whether the NodePath is absolute.
+    */
+    @property bool isAbsolute() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "is_absolute", 3918633141, GDExtensionBool)(&this);
+
+    /**
+        Count of names in the path.
+    */
+    @property int nameCount() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "get_name_count", 3173160232, GDExtensionInt)(&this);
+
+    /**
+        The hash of the node path.
+    */
+    @property long hash() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "hash", 3173160232, GDExtensionInt)(&this);
 
     /// Destructor
     ~this() {

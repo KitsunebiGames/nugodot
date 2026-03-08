@@ -863,15 +863,6 @@ public:
         else 
             this.type_ = registry.basicType("int8_t");
     }
-
-    /**
-        Gets a string representation of the type.
-    */
-    override
-    string toString() { // @suppress(dscanner.suspicious.object_const)
-        import std.format;
-        return "(enum %s (%s))".format(name, members.strJoin(", "));
-    }
 }
 
 /**
