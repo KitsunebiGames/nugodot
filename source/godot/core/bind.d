@@ -38,7 +38,7 @@ if (is(T : GDEObject)) {
     
     static if (is(T PT == super)) {
         GDExtensionClassCreationInfo5 classInfo = GDExtensionClassCreationInfo5(
-            is_virtual: false,
+            is_virtual: true,
             is_abstract: __traits(isAbstractClass, T),
             is_exposed: true,
             is_runtime: true,
@@ -47,6 +47,7 @@ if (is(T : GDEObject)) {
             create_instance_func: cast(typeof(GDExtensionClassCreationInfo5.create_instance_func))&ctors.__gde_class_create,
             free_instance_func: cast(typeof(GDExtensionClassCreationInfo5.free_instance_func))&ctors.__gde_class_free,
             recreate_instance_func: cast(typeof(GDExtensionClassCreationInfo5.recreate_instance_func))&ctors.__gde_class_recreate,
+            get_virtual_func: &__gde_class_get_virtual!(T),
 
             // Optional overrides.
             notification_func: 
@@ -183,31 +184,45 @@ if (is(T : GDEObject)) {
         cast(GDExtensionClassMethodFlags)methodFlagsOf!(method);
 
     // Fill out parameters.
-    static foreach(i, param; parametersOf!method) {
-        static if (is(__traits(identifier, param))) {
-            p_params[i] = gde_make_property_info!(param)(__traits(identifier, param));
-        } else {
-            p_params[i] = gde_make_property_info!(param)("param"~(cast(int)i).stringof);
-        }
+    alias paramNames = parameterNamesOf!method;
+    static foreach(int i, param; parametersOf!method) {
+        p_params[i] = gde_make_property_info!(param)(toSnakeCase!(paramNames[i]));
     }
 
     static if (!is(returnTypeOf!method == void))
         p_return = gde_make_property_info!(ReturnType!method)("");
 
-    // Registration
-    GDExtensionClassMethodInfo p_methodinfo = GDExtensionClassMethodInfo(
-        name: &p_methodname,
-        call_func: gde_wrap_method_call!(T, method)(),
-        ptrcall_func: gde_wrap_method_ptrcall!(T, method)(),
-        method_flags: cast(uint)p_methodflags,
-        has_return_value: !is(ReturnType!method == void),
-        return_value_info: &p_return,
-        return_value_metadata: p_return_meta,
-        argument_count: cast(int)paramCount,
-        arguments_info: p_params.ptr,
-        arguments_metadata: p_param_metas.ptr,
-    );
-    classdb_register_extension_class_method(__godot_class_library, &p_classname, &p_methodinfo);
+    static if (__traits(isFinalFunction, method) || __traits(isStaticFunction, method)) {
+
+        // Final & static functions.
+        GDExtensionClassMethodInfo p_methodinfo = GDExtensionClassMethodInfo(
+            name: &p_methodname,
+            call_func: gde_wrap_method_call!(T, method)(),
+            ptrcall_func: gde_wrap_method_ptrcall!(T, method)(),
+            method_flags: cast(uint)p_methodflags,
+            has_return_value: !is(ReturnType!method == void),
+            return_value_info: &p_return,
+            return_value_metadata: p_return_meta,
+            argument_count: cast(int)paramCount,
+            arguments_info: p_params.ptr,
+            arguments_metadata: p_param_metas.ptr,
+        );
+        classdb_register_extension_class_method(__godot_class_library, &p_classname, &p_methodinfo);
+
+    } else {
+
+        // Virtual functions.
+        GDExtensionClassVirtualMethodInfo p_virtualinfo = GDExtensionClassVirtualMethodInfo(
+            name: &p_methodname,
+            method_flags: cast(uint)p_methodflags,
+            return_value: p_return,
+            return_value_metadata: p_return_meta,
+            argument_count: cast(int)paramCount,
+            arguments: p_params.ptr,
+            arguments_metadata: p_param_metas.ptr,
+        );
+        classdb_register_extension_class_virtual_method(__godot_class_library, &p_classname, &p_virtualinfo);
+    }
 
     // Clean up parameters.
     static foreach(i; 0..paramCount)
@@ -287,6 +302,28 @@ void gde_bind_const(T, alias memberName)() @nogc {
     }
 }
 
+
+
+// 
+// These functions handle forwarding virtual functions that are overridden.
+// 
+
+// Binder that handles virtual function wrapper pointers.
+extern(C) GDExtensionClassCallVirtual __gde_class_get_virtual(T)(void* pclassuserdata, GDExtensionConstStringNamePtr pname, uint phash) @nogc nothrow {
+    StringName p_procname = *(cast(StringName*)pname);
+
+    static foreach(method; boundMethodsOf!T) {
+        
+        // We only care about overridden methods.
+        static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
+            if (p_procname == StringName(methodNameOf!(__traits(getMember, T, method)))) {
+                return gde_wrap_method_virtual_call!(T, method)();
+            }
+        }
+    }
+
+    return null;
+}
 
 // 
 // These functions implement forwarders for basic godot class functions  

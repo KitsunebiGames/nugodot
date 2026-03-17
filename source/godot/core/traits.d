@@ -74,6 +74,97 @@ template godotNameOf(alias symbol, bool recursive) {
 }
 
 /**
+    Gets whether the given type $(D T) is a variant.
+
+    Params:
+        T =    The type to query.
+*/
+template isVariant(T) {
+    import godot.variant;
+
+    static if (is(T == bool))
+        enum isVariant = true;
+    else static if (__traits(isIntegral, T))
+        enum isVariant = true;
+    else static if (__traits(isFloating, T))
+        enum isVariant = true;
+    else static if (is(T == String))
+        enum isVariant = true;
+    else static if (is(T == Vector2))
+        enum isVariant = true;
+    else static if (is(T == Vector2i))
+        enum isVariant = true;
+    else static if (is(T == Rect2))
+        enum isVariant = true;
+    else static if (is(T == Rect2i))
+        enum isVariant = true;
+    else static if (is(T == Vector3))
+        enum isVariant = true;
+    else static if (is(T == Vector3i))
+        enum isVariant = true;
+    else static if (is(T == Transform2D))
+        enum isVariant = true;
+    else static if (is(T == Vector4))
+        enum isVariant = true;
+    else static if (is(T == Vector4i))
+        enum isVariant = true;
+    else static if (is(T == Plane))
+        enum isVariant = true;
+    else static if (is(T == Quaternion))
+        enum isVariant = true;
+    else static if (is(T == AABB))
+        enum isVariant = true;
+    else static if (is(T == Basis))
+        enum isVariant = true;
+    else static if (is(T == Transform3D))
+        enum isVariant = true;
+    else static if (is(T == Projection))
+        enum isVariant = true;
+    else static if (is(T == Color))
+        enum isVariant = true;
+    else static if (is(T == StringName))
+        enum isVariant = true;
+    else static if (is(T == NodePath))
+        enum isVariant = true;
+    else static if (is(T == RID))
+        enum isVariant = true;
+    else static if (is(T : GDEObject))
+        enum isVariant = true;
+    else static if (is(T == Callable))
+        enum isVariant = true;
+    else static if (is(T == Signal!U, U...))
+        enum isVariant = true;
+    else static if (is(T == TypedDictionary!U, U...))
+        enum isVariant = true;
+    else static if (is(T == TypedArray!U, U))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedByteArray))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedInt32Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedInt64Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedFloat32Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedFloat64Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedVector2Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedVector3Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedVector4Array))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedColorArray))
+        enum isVariant = true;
+    else static if (is(Unref!T == PackedStringArray))
+        enum isVariant = true;
+    else static if (is(T == Variant))
+        enum isVariant = true;
+    else
+        enum isVariant = false;
+}
+
+/**
     Gets the variant type tag of the given D type.
 
     Params:
@@ -417,12 +508,38 @@ template parametersOf(alias symbol) {
 
     static if (is(typeof(symbol) == Signal!U, U...))
         alias parametersOf = symbol.ArgsT;
-    else static if (is(Parameters!(symbol)))
-        alias parametersOf = Parameters!(symbol);
-    else static if (is(Parameters!(mixin(symbol))))
-        alias parametersOf = Parameters!(mixin(symbol));
+    else static if (is(FunctionTypeOf!symbol PT == __parameters))
+        alias parametersOf = PT;
+    else static if (is(FunctionTypeOf!(mixin(symbol)) PT == __parameters))
+        alias parametersOf = PT;
     else
         alias parametersOf = AliasSeq!();
+}
+
+/**
+    Gets an alias sequence of parameter names for a symbol.
+
+    Params:
+        symbol = An alias to a symbol.
+    
+    Returns:
+        An alias sequence of parameter names.
+*/
+template parameterNamesOf(alias symbol) {
+    static if (is(FunctionTypeOf!(mixin(symbol)) PT == __parameters))
+        alias parameterNamesOf = parameterNamesOf!(mixin(symbol));
+    else static if (is(FunctionTypeOf!symbol PT == __parameters)) {
+        alias parameterNamesOf = AliasSeq!();
+        static foreach(int i; 0..PT.length) {
+            static if (is(typeof(__traits(identifier, PT[i .. i+1]))) && PT[i].stringof != PT[i .. i+1].stringof[1..$-1]) {
+                parameterNamesOf = AliasSeq!(parameterNamesOf, __traits(identifier, PT[i .. i+1]));
+            } else {
+                parameterNamesOf = AliasSeq!(parameterNamesOf, "param"~i.stringof);
+            }
+        }
+    } else {
+        alias parameterNamesOf = AliasSeq!();
+    }
 }
 
 /**

@@ -106,6 +106,28 @@ RetT gde_bind_and_call(GDExtensionVariantType type, string name, uint hash, RetT
 }
 
 /**
+    Binds a variant operator and calls it.
+
+    Params:
+        a = The left hand side of the operator.
+        b = The right hand side of the operator.
+    
+    Returns:
+        Return value depends on template, refer to Godot's
+        documentation.
+*/
+GDExtensionInt get_bind_op_and_call(GDExtensionVariantOperator poperator, TA, TB)(auto ref TA a, auto ref TB b) @nogc nothrow
+if(isVariant!TA && isVariant!TB) {
+    __gshared GDExtensionPtrOperatorEvaluator __bind;
+    if (!__bind)
+        __bind = variant_get_ptr_operator_evaluator(poperator, variantTypeOf!TA, variantTypeOf!TB);
+    
+    GDExtensionInt ret;
+    __bind(&a, &b, &ret);
+    return ret;
+}
+
+/**
     Binds a native godot method by name and hash and calls it.
 
     Params:
@@ -245,6 +267,38 @@ auto gde_get_func_instance(T, string method)(Object instance) @system @nogc noth
 
         return cast(rt)&__func;
     }
+}
+
+/**
+    Wraps a given method of a class with a godot virtual call wrapper.
+
+    Params:
+        T =         The class to wrap a function for
+        method =    Alias of the method to wrap.
+*/
+pragma(inline, true)
+GDExtensionClassCallVirtual gde_wrap_method_virtual_call(T, alias method)() @nogc
+if (is(T : GDEObject)) {
+    extern(C) GDExtensionClassCallVirtual fn = cast(GDExtensionClassCallVirtual)(GDExtensionClassInstancePtr p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
+        alias ReturnType = returnTypeOf!method;
+        alias Params = parametersOf!method;
+        
+        T obj_ = cast(T)p_instance;
+
+        // Get parameters.
+        Params __args = void;
+        static foreach(i; 0..__args.length) {
+            __args[i] = *(cast(typeof(__args[i])*)p_args[i]);
+        }
+
+        // Call.
+        static if (!is(ReturnType == void))
+            *(cast(ReturnType*)r_ret) = __traits(getMember, obj_, __traits(identifier, method))(__args);
+        else
+            __traits(getMember, obj_, __traits(identifier, method))(__args);
+    };
+
+    return fn;
 }
 
 /**

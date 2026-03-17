@@ -54,6 +54,16 @@ size_t getNextDepth(size_t current, GDEClassRegistrationInfo[] classes) @nogc no
     return lowest;
 }
 
+// Gets the previous depth value to instantiate.
+size_t getPrevDepth(size_t current, GDEClassRegistrationInfo[] classes) @nogc nothrow {
+    size_t highest = 0;
+    foreach(klass; classes) {
+        if (klass.inheritDepth < current && klass.inheritDepth > highest)
+            highest = klass.inheritDepth;
+    }
+    return highest;
+}
+
 extern(C) void __gde_extension_init(void *p_userdata, GDExtensionInitializationLevel p_level) @nogc nothrow {
     switch(p_level) {
         case GDEXTENSION_INITIALIZATION_SCENE:
@@ -84,10 +94,24 @@ extern(C) void __gde_extension_init(void *p_userdata, GDExtensionInitializationL
 }
 
 extern(C) void __gde_extension_shutdown(void *p_userdata, GDExtensionInitializationLevel p_level) @nogc nothrow {
-    if (p_level == GDEXTENSION_INITIALIZATION_SCENE) {
-        foreach(klass; gde_get_registrations()) {
-            klass.unregistration();
-        }
+    switch(p_level) {
+        case GDEXTENSION_INITIALIZATION_SCENE:
+            GDEClassRegistrationInfo[] classes = gde_get_registrations();
+            size_t unloaded = 0;
+            size_t toUnload = size_t.max;
+            while(unloaded < classes.length) {
+                toUnload = toUnload.getPrevDepth(classes);
+                foreach(klass; classes) {
+                    if (klass.inheritDepth == toUnload) {
+                        klass.unregistration();
+                        unloaded++;
+                    }
+                }
+            }
+            return;
+        
+        default:
+            return;
     }
 }
 

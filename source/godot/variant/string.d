@@ -11,7 +11,7 @@ import numem.core.hooks;
 */
 struct String {
 private:
-@nogc:
+@nogc nothrow:
     void[VARIANT_SIZE_STRING] data_;
 
 public:
@@ -179,7 +179,7 @@ void gde_free_string()(auto ref String* str) @nogc nothrow {
 */
 struct StringName {
 private:
-@nogc:
+@nogc nothrow:
     void[VARIANT_SIZE_STRINGNAME] data_;
 
 public:
@@ -206,6 +206,13 @@ public:
     */
     this(string name) {
         string_name_new_with_utf8_chars_and_len(&this, name.ptr, cast(int)name.length);
+    }
+
+    /**
+        Compares equality between 2 StringName's
+    */
+    bool opEquals()(auto ref StringName other) {
+        return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL)(this, other);
     }
 }
 
@@ -256,7 +263,7 @@ void gde_free_string_name()(auto ref StringName* name) @nogc nothrow {
 */
 struct NodePath {
 private:
-@nogc:
+@nogc nothrow:
     void[VARIANT_SIZE_NODEPATH] data;
 
 public:
