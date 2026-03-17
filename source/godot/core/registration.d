@@ -6,7 +6,7 @@ import numem;
 /**
     The name of the section that GDExtension Type registrations will be put into.
 */
-enum GDE_SECTION_NAME = ".gdetyp";
+enum GDE_SECTION_NAME = "gdetyp";
 
 /**
     Registration info for a godot class.
@@ -52,9 +52,9 @@ GDEClassRegistrationInfo[] gde_get_registrations() @nogc nothrow {
         // NOTE:    Linux relies on a linker trick that creates a special
         //          section guard with the structs inside, these structs
         //          are already decorated with the neccesary function pointers.
-        GDEClassRegistrationInfo* addr = &__start___gde_registration;
-        size_t startAddr = cast(size_t)(cast(void*)&__start___gde_registration);
-        size_t stopAddr = cast(size_t)(cast(void*)&__stop___gde_registration);
+        GDEClassRegistrationInfo* addr = &__start;
+        size_t startAddr = cast(size_t)(cast(void*)&__start);
+        size_t stopAddr = cast(size_t)(cast(void*)&__stop);
         size_t length = (stopAddr-startAddr);
         return addr[0..(length/GDEClassRegistrationInfo.sizeof)];
     } else version(Windows) {
@@ -128,8 +128,10 @@ if (is(T : GDEObject)) {
 private:
 
 version(linux) {
-    extern(C) extern GDEClassRegistrationInfo __start___gde_registration;
-    extern(C) extern GDEClassRegistrationInfo __stop___gde_registration;
+    pragma(mangle, "__start_"~GDE_SECTION_NAME)
+    extern(C) extern __gshared GDEClassRegistrationInfo __start;
+    pragma(mangle, "__stop_"~GDE_SECTION_NAME)
+    extern(C) extern __gshared GDEClassRegistrationInfo __stop;
 }
 
 version(Windows) {
