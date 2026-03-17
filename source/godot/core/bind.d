@@ -16,7 +16,7 @@ import numem : nogc_new, nogc_delete;
 
     You generally do not need to call this yourself.
 */
-extern(C) void gde_bind_class(T)() @nogc 
+void gde_bind_class(T)() @nogc 
 if (is(T : GDEObject)) {
 
     // Get icon of the class

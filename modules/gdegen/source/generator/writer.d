@@ -405,7 +405,7 @@ public:
         // Function prototypes
         if (auto fp_t = cast(GDEFuncPrototype)type) {
             this.writeDDOC(fp_t.ddoc);
-            this.writefln("alias %s = %s function(%s);", fp_t.name, fp_t.returnType.name, fp_t.params.toParamList(true).join(", "));
+            this.writefln("alias %s = extern(C) %s function(%s);", fp_t.name, fp_t.returnType.name, fp_t.params.toParamList(true).join(", "));
             return;
         }
 
@@ -421,6 +421,11 @@ public:
                 singleton_t.name
             );
             return;
+        }
+
+        // Bound signals
+        if (auto signal_t = cast(GDESignal)type) {
+            // TODO
         }
         
         // Bound class methods

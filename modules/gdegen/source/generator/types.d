@@ -853,15 +853,11 @@ public:
             if (abs(member.value) > maxValue)
                 maxValue = abs(member.value);
         }
-
+        
         if (maxValue >= int.max)
             this.type_ = registry.basicType("int64_t");
-        else if (maxValue >= short.max)
+        else
             this.type_ = registry.basicType("int32_t");
-        else if (maxValue >= byte.max)
-            this.type_ = registry.basicType("int16_t");
-        else 
-            this.type_ = registry.basicType("int8_t");
     }
 }
 
