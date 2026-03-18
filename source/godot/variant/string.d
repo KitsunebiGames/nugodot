@@ -39,7 +39,7 @@ public:
     /**
         Constructs a string from a variant.
     */
-    this(ref Variant variant) {
+    this()(auto ref Variant variant) {
         string_from_variant(&this, &variant);
     }
 

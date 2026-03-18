@@ -3,6 +3,8 @@
 */
 module godot.core.attribs;
 
+import godot.globals;
+
 /**
     Specifies the name a class should be bound as.
 */
@@ -24,3 +26,19 @@ struct gd_name { string name; }
     Godot.
 */
 struct gd_hide;
+
+/**
+    Exports a class property to the editor.
+*/
+struct gd_export;
+
+/**
+    Exports a class property to the editor as a multiline string.
+*/
+struct gd_export_mutliline { string hints; }
+
+/**
+    Exports a class property to the editor with a custom
+    hint and hint string.
+*/
+struct gd_export_custom { PropertyHint hint; string hintString; PropertyUsageFlags flags; }

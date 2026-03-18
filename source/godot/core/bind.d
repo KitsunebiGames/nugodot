@@ -155,8 +155,8 @@ if (is(T : GDEObject)) {
 
     // Fill out parameters.
     GDExtensionPropertyInfo[paramCount] p_params;
-    static foreach(i, param; parametersOf!(__traits(getMember, T, signal))) {
-        p_params[i] = gde_make_property_info!(param)("param"~(cast(int)i).stringof);
+    static foreach(int i, param; parametersOf!(__traits(getMember, T, signal))) {
+        p_params[i] = gde_make_property_info!(param)("param"~i.stringof);
     }
 
     // Register signal
@@ -188,9 +188,7 @@ if (is(T : GDEObject)) {
     static foreach(int i, param; parametersOf!method) {
         p_params[i] = gde_make_property_info!(param)(toSnakeCase!(paramNames[i]));
     }
-
-    static if (!is(returnTypeOf!method == void))
-        p_return = gde_make_property_info!(ReturnType!method)("");
+    p_return = gde_make_property_info!(ReturnType!method)("");
 
     static if (__traits(isFinalFunction, method) || __traits(isStaticFunction, method)) {
 
@@ -227,6 +225,7 @@ if (is(T : GDEObject)) {
     // Clean up parameters.
     static foreach(i; 0..paramCount)
         gde_destroy_property_info(p_params[i]);
+    gde_destroy_property_info(p_return);
 }
 
 void gde_bind_property(T, alias memberName)() @nogc {
@@ -258,20 +257,18 @@ void gde_bind_property(T, alias memberName)() @nogc {
     StringName* p_getter_name = gde_make_string_name(getterName);
     StringName* p_setter_name = gde_make_string_name(setterName);
     
-    static if (is(propType : Resource)) {
-
-        // NOTE:    Resources need to be provided with a hint to get the correct resource type
-        //          showing in the editor list.
-        auto p_prop_info = gde_make_property_info!propType(gdMemberName, PROPERTY_HINT_RESOURCE_TYPE, classNameOf!propType);
-        classdb_register_extension_class_property(__godot_class_library, &p_classname, &p_prop_info, p_setter_name, p_getter_name);
-        gde_destroy_property_info(p_prop_info);
-
+    // Get the property exports.
+    static if (propHasGetter && hasPropertyExport!(propFuncs[0])) {
+        enum propExport = getPropertyExport!(propFuncs[0]);
+    } else static if (propHasSetter && hasPropertyExport!(propFuncs[1])) {
+        enum propExport = getPropertyExport!(propFuncs[1]);
     } else {
-    
-        auto p_prop_info = gde_make_property_info!propType(gdMemberName);
-        classdb_register_extension_class_property(__godot_class_library, &p_classname, &p_prop_info, p_setter_name, p_getter_name);
-        gde_destroy_property_info(p_prop_info);
+        enum propExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR);
     }
+    
+    auto p_prop_info = gde_make_property_info!propType(gdMemberName, propExport.hint, propExport.hintString, propExport.flags);
+    classdb_register_extension_class_property(__godot_class_library, &p_classname, &p_prop_info, p_setter_name, p_getter_name);
+    gde_destroy_property_info(p_prop_info);
 
     gde_free_string_name(p_getter_name);
     gde_free_string_name(p_setter_name);
@@ -284,13 +281,13 @@ void gde_bind_const(T, alias memberName)() @nogc {
     StringName p_constname;
     GDExtensionInt p_value;
     
-    static if (is(typeof(member) == enum)) {
+    static if (is(member == enum)) {
         
         // Enums
         p_enumname = StringName(__traits(identifier, member));
-        static foreach(enumMember; __traits(getMembers, member)) {
-            p_constname = StringName(toScreamingSnakeCase!(__traits(identifier, enumMember)));
-            p_value = cast(GDExtensionInt)__traits(getMember, T, memberName);
+        static foreach(enumMember; __traits(allMembers, member)) {
+            p_constname = StringName(toScreamingSnakeCase!(enumMember));
+            p_value = cast(GDExtensionInt)__traits(getMember, member, enumMember);
             classdb_register_extension_class_integer_constant(__godot_class_library, &p_classname, &p_enumname, &p_constname, p_value, false);
         }
     } else {

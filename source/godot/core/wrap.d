@@ -275,15 +275,32 @@ auto gde_get_func_instance(T, string method)(Object instance) @system @nogc noth
     Params:
         T =         The class to wrap a function for
         method =    Alias of the method to wrap.
+        procname =  Name of the procedure to be called.
 */
 pragma(inline, true)
-GDExtensionClassCallVirtual gde_wrap_method_virtual_call(T, alias method)() @nogc
+GDExtensionClassCallVirtual gde_wrap_method_virtual_call(T, alias method)(auto ref StringName procname) @nogc
 if (is(T : GDEObject)) {
     extern(C) GDExtensionClassCallVirtual fn = cast(GDExtensionClassCallVirtual)(GDExtensionClassInstancePtr p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
         alias ReturnType = returnTypeOf!method;
         alias Params = parametersOf!method;
         
         T obj_ = cast(T)p_instance;
+        if (object_has_script_method(obj_.ptr, &procname)) {
+
+            // Get parameters.
+            Variant[Params.length] __args = void;
+            Variant __ret;
+            static foreach(i; 0..__args.length) {
+                __args[i] = gde_wrap(*(cast(typeof(__args[i])*)p_args[i]));
+            }
+
+            GDExtensionCallError err;
+            object_call_script_method(obj_.ptr, &procname, __args.ptr, cast(GDExtensionInt)__args.length, &__ret, &err);
+
+            static if (!is(ReturnType == void))
+                *(cast(ReturnType*)r_ret) = gde_unwrap!ReturnType(__ret);
+            return;
+        }
 
         // Get parameters.
         Params __args = void;
@@ -420,14 +437,6 @@ GDExtensionPropertyInfo gde_make_property_info(T)(string name, uint hint = 0, st
     //          typed arrays, so we need to build hint strings for it.
     //          The following block does so.
     String* p_hint_string = gde_make_string(hintString);
-    if (hint == 0) {
-
-        // TODO: Arrays and Dictionaries.
-        static if (isPointer!T) {
-            hint = PROPERTY_HINT_INT_IS_POINTER;
-        }
-    }
-
     StringName* p_name = gde_make_string_name(name);
     StringName* p_classname = gde_make_string_name(class_name);
     return GDExtensionPropertyInfo(
@@ -438,22 +447,6 @@ GDExtensionPropertyInfo gde_make_property_info(T)(string name, uint hint = 0, st
         hint_string: p_hint_string,
         usage: usageFlags,
     );
-}
-
-/**
-    Gets a singleton by name.
-
-    Params:
-        name = The name of the singleton to get.
-    
-    Returns:
-        The singleton if successful,
-        $(D null) otherwise.
-*/
-T gde_get_singleton(T)(string name)
-if (is(T : GDEObject)) {
-    StringName p_name = StringName(name);
-    return gde_get!T(global_get_singleton(&p_name));
 }
 
 /**
@@ -470,6 +463,22 @@ void gde_destroy_property_info(ref GDExtensionPropertyInfo info) @nogc {
     gde_free_string_name(cast(StringName*)info.name);
     gde_free_string_name(cast(StringName*)info.class_name);
     gde_free_string(cast(String*)info.hint_string);
+}
+
+/**
+    Gets a singleton by name.
+
+    Params:
+        name = The name of the singleton to get.
+    
+    Returns:
+        The singleton if successful,
+        $(D null) otherwise.
+*/
+T gde_get_singleton(T)(string name)
+if (is(T : GDEObject)) {
+    StringName p_name = StringName(name);
+    return gde_get!T(global_get_singleton(&p_name));
 }
 
 /**

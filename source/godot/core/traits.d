@@ -332,7 +332,10 @@ template isMethod(T, string member) {
         func =  Name of the member
 */
 template isConstant(T, string member) {
-    alias MT = typeof(__traits(getMember, T, member));
+    static if (is(__traits(getMember, T, member)))
+        alias MT = __traits(getMember, T, member);
+    else
+        alias MT = typeof(__traits(getMember, T, member));
 
     static if (is(MT MTY == enum)) {
         enum isConstant = __traits(isIntegral, MTY);
@@ -390,6 +393,56 @@ if (is(T : GDEObject)) {
 }
 
 /**
+    Gets the godot export options attached to a given property.
+
+    Params:
+        member = Alias to a member overload.
+*/
+template getPropertyExport(alias member) {
+    import numem.core.traits;
+    import godot.globals;
+    import godot.resource;
+    import godot.variant;
+
+    static if (is(member)) {
+        alias MT = typeof(member);
+        static if (hasUDA!(member, gd_export_mutliline)) {
+            
+            static assert(is(MT == String) || is(MT == string), "gd_export_multiline can only be applied to strings!");
+            enum getPropertyExport = gd_export_custom(PROPERTY_HINT_MULTILINE_TEXT, getUDAs!(member, gd_export_mutliline)[0].hint, PROPERTY_USAGE_DEFAULT);
+        } else static if (hasUDA!(member, gd_export)) {
+
+            static if (!is(MT == class) && isPointer!(MT)) {
+                enum getPropertyExport = gd_export_custom(PROPERTY_HINT_INT_IS_POINTER, "", PROPERTY_USAGE_DEFAULT);
+            } static if (is(MT : Resource)) {
+                enum getPropertyExport = gd_export_custom(PROPERTY_HINT_RESOURCE_TYPE, classNameOf!(typeof(member)), PROPERTY_USAGE_DEFAULT);
+            } else {
+                enum getPropertyExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT);
+            }
+        } else static if (hasUDA!(member, gd_export_custom)) {
+
+            enum getPropertyExport = getUDAs!(member, gd_export_custom)[0];
+        } else {
+
+            enum getPropertyExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR);
+        }
+    } else {
+
+        enum getPropertyExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR);
+    }
+}
+
+/**
+    Gets whether a given member alias has a export property.
+
+    Params:
+        member = Alias to a class member.
+*/
+template hasPropertyExport(alias member) {
+    enum hasPropertyExport = hasUDA!(member, gd_export) || hasUDA!(member, gd_export_mutliline) || hasUDA!(member, gd_export_custom);
+}
+
+/**
     Gets an alias sequence of the methods that are bound for a given class.
     
     Notes:
@@ -443,7 +496,7 @@ if (is(T : GDEObject)) {
     template isAllowedMember(alias memberName) {
         enum visibility = __traits(getVisibility, __traits(getMember, T, memberName));
 
-        enum isVisible = (visibility == "public" || visibility == "export") && !hasUDA!(__traits(getMember, T, memberName), gd_hide);
+        enum isVisible = (visibility == "public" || visibility == "export" || visibility == "protected") && !hasUDA!(__traits(getMember, T, memberName), gd_hide);
         enum isAllowedName = memberName[0..nu_min(2, memberName.length)] != "__";
         enum isAllowedMember = isVisible && isAllowedName;
     }
