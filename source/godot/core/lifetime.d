@@ -57,11 +57,13 @@ Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
     Params:
         value = The given value to free.
 */
-void gd_delete(T)(ref T value) @safe @nogc {
+void gd_delete(T)(ref T value) @trusted @nogc {
     import numem.core.hooks : nu_free;
     static if (is(T : GDEObject)) {
-        object_destroy(value.value_ptr);
-        nogc_delete(value);
+        static if(is(typeof(value.__xdtor)))
+            value.__xdtor();
+        
+        object_destroy(value.ptr);
     } else {
         static if (isPointer!T)
             T* p_value = value;

@@ -97,6 +97,23 @@ public:
         Gets a string representation of this type.
     */
     override string toString() { return typeid(this).name; }
+
+    /**
+        Performs casts
+    */
+    T opCast(T)() const {
+        static if (is(T : GDEObject)) {
+            return gde_class_cast!T(cast(Unqual!(typeof(this)))this);
+        } else static if (is(T == Object)) {
+            return cast(Object)cast(void*)this;
+        } else static if (is(T == Variant)) {
+            return gde_wrap(this);
+        } else static if (is(T == void*)) {
+            return cast(void*)nativePtr_;  
+        } else {
+            static assert(0, "Cannot cast GDEObject to type "~T.stringof);
+        }
+    }
 }
 
 /**
@@ -139,7 +156,7 @@ if (is(T : GDEObject)) {
         const void[] __initSym = __traits(initSymbol, T);
         T obj = cast(T)nu_malloc(AllocSize!T);
         nu_memcpy(cast(void*)obj, cast(void*)__initSym.ptr, __initSym.length);
-        (cast(GDEObject)obj).nativePtr_ = ptr;
+        (cast(GDEObject)cast(void*)obj).nativePtr_ = ptr;
         
         // Apply our wrapper to the object.
         StringName __className = StringName(classNameOf!T);
@@ -161,6 +178,86 @@ if (is(T : GDEObject)) {
     }
 }
 
+/**
+    Performs an upcast on a class, reallocating it if need be.
+
+    Params:
+        from = The class to cast from.
+    
+    Returns:
+        The reallocated, casted class,
+        or $(D null) if casting was not possible.
+*/
+TTo gde_class_cast(TTo, TFrom)(TFrom from) @system @nogc
+if (is(TFrom : GDEObject) && is(TTo : GDEObject)) {
+    static if (is(TTo : TFrom)) {
+
+        // Downcast
+        return cast(TTo)cast(void*)from;
+    } else {
+        
+        // Already compatible upcast.
+        if (from.classinfo is typeid(TTo))
+            return cast(TTo)cast(void*)from;
+        
+        void* p_gdobject = from.nativePtr_;
+        void* p_dobject = cast(void*)from;
+
+        // Information needed to retain local variables.
+        size_t p_dobject_offset = from.classinfo.initializer.length;
+        size_t p_gdeobject_size = __traits(classInstanceSize, GDEObject);
+
+        // In-place upcast.
+        StringName p_classname;
+        if (object_get_class_name(p_gdobject, __godot_class_library, &p_classname)) {
+            if (auto nptr = object_cast_to(p_gdobject, classdb_get_class_tag(&p_classname))) {
+
+                // 1.   Reallocate the object's memory, if need be.
+                static if (__traits(classInstanceSize, TFrom) < __traits(classInstanceSize, TTo))
+                    p_dobject = nu_realloc(p_dobject, __traits(initSymbol, TTo).sizeof);
+
+                // 2.   Re-initialize the GDEObject sub-object to its base state,
+                //      writing our new VTable in the process.
+                auto p_dobject_init = __traits(initSymbol, TTo);
+                nu_memcpy(p_dobject, p_dobject_init.ptr, p_gdeobject_size);
+                
+                // 3.   Fill out new initializer information at the end.
+                if (p_dobject_offset < p_dobject_init.length)
+                    nu_memcpy(p_dobject+p_dobject_offset, p_dobject_init+p_dobject_offset, p_dobject_init.length-p_dobject_offset);
+
+                // 4.   Re-write our object pointer to it.
+                (cast(GDEObject)p_dobject).nativePtr_ = nptr;
+
+                // 4.   Update the godot instance binding.
+                object_set_instance(nptr, &p_classname, p_dobject);
+                return cast(TTo)p_dobject;
+            }
+        }
+
+        // Invalid upcast.
+        return null;
+    }
+}
+
+/**
+    Frees a class instance.
+
+    Params:
+        object = The object instance to free.
+*/
+void gde_class_instance_free(T)(ref T object) @system @nogc
+if (is(T : GDEObject)) {
+    if (object) {
+        static if (is(typeof(T.__xdtor)))
+            object.__xdtor();
+        else static if (is(typeof(T.__dtor)))
+            object.__dtor();
+        
+        nu_free(cast(void*)object);
+        object = null;
+    }
+}
+
 //
 //              IMPLEMENTATION DETAILS
 //
@@ -175,8 +272,9 @@ template __nu_gde_instance_callbacks(T) {
 
         pragma(mangle, "__nu_gde_free_callback_"~__traits(identifier, T))
         extern(C) void __nu_gde_free_callback(void *p_token, void *p_instance, void *p_binding) @nogc {
-            GDEObject object = cast(GDEObject)p_binding;
-            nogc_delete(object);
+            if (T object = cast(T)p_binding) {
+                gde_class_instance_free(object);
+            }
         }
 
         pragma(mangle, "__nu_gde_reference_callback_"~__traits(identifier, T))
@@ -190,24 +288,10 @@ template __nu_gde_instance_callbacks(T) {
             reference_callback: cast(typeof(GDExtensionInstanceBindingCallbacks.reference_callback))&__nu_gde_reference_callback
         );
     } else {
-        pragma(mangle, "__nu_gde_create_callback_"~__traits(identifier, T))
-        extern(C) void* __nu_gde_create_callback(void *p_token, void *p_instance) @nogc {
-            return null;
-        }
-
-        pragma(mangle, "__nu_gde_free_callback_"~__traits(identifier, T))
-        extern(C) void __nu_gde_free_callback(void *p_token, void *p_instance, void *p_binding) @nogc {
-        }
-
-        pragma(mangle, "__nu_gde_reference_callback_"~__traits(identifier, T))
-        extern(C) GDExtensionBool __nu_gde_reference_callback(void *p_token, void *p_instance, GDExtensionBool p_reference) @nogc {
-            return true;
-        }
-
-        extern(C) __gshared GDExtensionInstanceBindingCallbacks __nu_gde_instance_callbacks = GDExtensionInstanceBindingCallbacks(
-            create_callback: cast(typeof(GDExtensionInstanceBindingCallbacks.create_callback))&__nu_gde_create_callback,
-            free_callback: cast(typeof(GDExtensionInstanceBindingCallbacks.free_callback))&__nu_gde_free_callback,
-            reference_callback: cast(typeof(GDExtensionInstanceBindingCallbacks.reference_callback))&__nu_gde_reference_callback
+        extern(C) __gshared const GDExtensionInstanceBindingCallbacks __nu_gde_instance_callbacks = GDExtensionInstanceBindingCallbacks(
+            create_callback: null,
+            free_callback: null,
+            reference_callback: null
         );
     }
 }

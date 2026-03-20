@@ -278,14 +278,15 @@ auto gde_get_func_instance(T, string method)(Object instance) @system @nogc noth
         procname =  Name of the procedure to be called.
 */
 pragma(inline, true)
-GDExtensionClassCallVirtual gde_wrap_method_virtual_call(T, alias method)(auto ref StringName procname) @nogc
+GDExtensionClassCallVirtual gde_wrap_method_virtual_call(T, alias method, string procname)() @nogc
 if (is(T : GDEObject)) {
     extern(C) GDExtensionClassCallVirtual fn = cast(GDExtensionClassCallVirtual)(GDExtensionClassInstancePtr p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
         alias ReturnType = returnTypeOf!method;
         alias Params = parametersOf!method;
         
         T obj_ = cast(T)p_instance;
-        if (object_has_script_method(obj_.ptr, &procname)) {
+        StringName p_procname = StringName(procname);
+        if (object_has_script_method(obj_.ptr, &p_procname)) {
 
             // Get parameters.
             Variant[Params.length] __args = void;
@@ -295,7 +296,7 @@ if (is(T : GDEObject)) {
             }
 
             GDExtensionCallError err;
-            object_call_script_method(obj_.ptr, &procname, __args.ptr, cast(GDExtensionInt)__args.length, &__ret, &err);
+            object_call_script_method(obj_.ptr, &p_procname, cast(const(GDExtensionConstTypePtr)*)__args.ptr, cast(GDExtensionInt)__args.length, &__ret, &err);
 
             static if (!is(ReturnType == void))
                 *(cast(ReturnType*)r_ret) = gde_unwrap!ReturnType(__ret);
@@ -310,9 +311,9 @@ if (is(T : GDEObject)) {
 
         // Call.
         static if (!is(ReturnType == void))
-            *(cast(ReturnType*)r_ret) = __traits(getMember, obj_, __traits(identifier, method))(__args);
+            *(cast(ReturnType*)r_ret) = __traits(getMember, obj_, method)(__args);
         else
-            __traits(getMember, obj_, __traits(identifier, method))(__args);
+            __traits(getMember, obj_, method)(__args);
     };
 
     return fn;

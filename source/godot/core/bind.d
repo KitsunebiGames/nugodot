@@ -109,8 +109,9 @@ if (is(T : GDEObject)) {
         // Instance free forwarder.
         pragma(mangle, gdeMangleOf!(T, __gde_class_free))
         extern(C) __gshared void __gde_class_free(void* p_userdata, GDExtensionClassInstancePtr p_instance) @nogc {
-            if (GDEObject pObject = cast(GDEObject)p_instance)
-                nogc_delete(pObject);
+            if (T object = cast(T)p_instance) {
+                gde_class_instance_free(object);
+            }
         }
 
         // Instance recreate forwarder.
@@ -314,7 +315,7 @@ extern(C) GDExtensionClassCallVirtual __gde_class_get_virtual(T)(void* pclassuse
         // We only care about overridden methods.
         static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
             if (p_procname == StringName(methodNameOf!(__traits(getMember, T, method)))) {
-                return gde_wrap_method_virtual_call!(T, method)();
+                return gde_wrap_method_virtual_call!(T, method, methodNameOf!(__traits(getMember, T, method)))();
             }
         }
     }
