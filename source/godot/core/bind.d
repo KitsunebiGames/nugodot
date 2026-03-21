@@ -38,7 +38,7 @@ if (is(T : GDEObject)) {
     
     static if (is(T PT == super)) {
         GDExtensionClassCreationInfo5 classInfo = GDExtensionClassCreationInfo5(
-            is_virtual: true,
+            is_virtual: false,
             is_abstract: __traits(isAbstractClass, T),
             is_exposed: true,
             is_runtime: true,
@@ -47,7 +47,8 @@ if (is(T : GDEObject)) {
             create_instance_func: cast(typeof(GDExtensionClassCreationInfo5.create_instance_func))&ctors.__gde_class_create,
             free_instance_func: cast(typeof(GDExtensionClassCreationInfo5.free_instance_func))&ctors.__gde_class_free,
             recreate_instance_func: cast(typeof(GDExtensionClassCreationInfo5.recreate_instance_func))&ctors.__gde_class_recreate,
-            get_virtual_func: &__gde_class_get_virtual!(T),
+            get_virtual_call_data_func: &__gde_class_get_virtual_call_data!(T),
+            call_virtual_with_data_func: &__gde_class_call_virtual_with_data!(T),
 
             // Optional overrides.
             notification_func: 
@@ -306,21 +307,41 @@ void gde_bind_const(T, alias memberName)() @nogc {
 // These functions handle forwarding virtual functions that are overridden.
 // 
 
-// Binder that handles virtual function wrapper pointers.
-extern(C) GDExtensionClassCallVirtual __gde_class_get_virtual(T)(void* pclassuserdata, GDExtensionConstStringNamePtr pname, uint phash) @nogc nothrow {
-    StringName p_procname = *(cast(StringName*)pname);
+template __gde_class_get_virtual_call_data(T) {
 
-    static foreach(method; boundMethodsOf!T) {
-        
-        // We only care about overridden methods.
-        static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
-            if (p_procname == StringName(methodNameOf!(__traits(getMember, T, method)))) {
-                return gde_wrap_method_virtual_call!(T, method, methodNameOf!(__traits(getMember, T, method)))();
+    pragma(mangle, gdeMangleOf!(T, __gde_class_get_virtual_call_data))
+    extern(C) void* __gde_class_get_virtual_call_data(void* pclassuserdata, GDExtensionConstStringNamePtr pname, uint phash) {
+        StringName p_procname = *cast(StringName*)pname;
+        static foreach(method; boundMethodsOf!T) {
+
+            // We only care about overridden methods.
+            static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
+                if (p_procname == methodNameOf!(__traits(getMember, T, method))) {
+                    return gde_get_func_instance!(T, method)();
+                }
+            }
+        }
+
+        return null;
+    }
+}
+
+template __gde_class_call_virtual_with_data(T) {
+    pragma(mangle, gdeMangleOf!(T, __gde_class_call_virtual_with_data))
+    extern(C) void __gde_class_call_virtual_with_data(GDExtensionClassInstancePtr pinstance, GDExtensionConstStringNamePtr pname, void* pvirtualcalluserdata, const(GDExtensionConstTypePtr)* pargs, GDExtensionTypePtr rret) {
+    
+        T p_instance = cast(T)pinstance;
+        static foreach(method; boundMethodsOf!T) {
+
+            // We only care about overridden methods.
+            static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
+                if (pvirtualcalluserdata == cast(void*)gde_get_func_instance!(T, method)()) {
+                    auto fn = gde_get_func_instance!(T, method)();
+                    gde_gdcall(fn, pargs, rret, p_instance);
+                }
             }
         }
     }
-
-    return null;
 }
 
 // 
@@ -346,7 +367,7 @@ extern(C) GDExtensionBool __gde_class_property_get_revert_func(void* p_instance,
 
 extern(C) void __gde_class_notification_func(void* p_instance, int p_what, GDExtensionBool p_reversed) @nogc {
     auto p_obj = cast(GDEObject)p_instance;
-    gde_get_func_instance!(GDEObject, "onNotification")(p_obj)(p_obj, p_what, cast(bool)p_reversed);
+    gde_get_func_instance!(GDEObject, "onNotification")()(p_obj, p_what, cast(bool)p_reversed);
 }
 
 extern(C) void __gde_class_to_string_func(void* p_instance, GDExtensionBool* r_is_valid, String* r_out) @nogc {

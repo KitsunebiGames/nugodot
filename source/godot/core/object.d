@@ -105,11 +105,11 @@ public:
         static if (is(T : GDEObject)) {
             return gde_class_cast!T(cast(Unqual!(typeof(this)))this);
         } else static if (is(T == Object)) {
-            return cast(Object)cast(void*)this;
+            return reinterpret_cast!(Object)(this);
         } else static if (is(T == Variant)) {
             return gde_wrap(this);
         } else static if (is(T == void*)) {
-            return cast(void*)nativePtr_;  
+            return reinterpret_cast!(void*)(this);
         } else {
             static assert(0, "Cannot cast GDEObject to type "~T.stringof);
         }
@@ -154,9 +154,11 @@ if (is(T : GDEObject)) {
         // NOTE:    Allocate and base-initialize the class.
         //          This will NOT call any constructors.
         const void[] __initSym = __traits(initSymbol, T);
-        T obj = cast(T)nu_malloc(AllocSize!T);
-        nu_memcpy(cast(void*)obj, cast(void*)__initSym.ptr, __initSym.length);
-        (cast(GDEObject)cast(void*)obj).nativePtr_ = ptr;
+        T obj = cast(T)nu_malloc(__initSym.length);
+        void* objptr = reinterpret_cast!(void*)(obj);
+        
+        nu_memcpy(objptr, cast(void*)__initSym.ptr, __initSym.length);
+        (cast(GDEObject)objptr).nativePtr_ = ptr;
         
         // Apply our wrapper to the object.
         StringName __className = StringName(classNameOf!T);
@@ -247,13 +249,14 @@ if (is(TFrom : GDEObject) && is(TTo : GDEObject)) {
 */
 void gde_class_instance_free(T)(ref T object) @system @nogc
 if (is(T : GDEObject)) {
-    if (object) {
+    void* objptr = reinterpret_cast!(void*)(object);
+    if (objptr) {
         static if (is(typeof(T.__xdtor)))
             object.__xdtor();
         else static if (is(typeof(T.__dtor)))
             object.__dtor();
         
-        nu_free(cast(void*)object);
+        nu_free(objptr);
         object = null;
     }
 }

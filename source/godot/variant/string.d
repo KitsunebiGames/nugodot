@@ -44,6 +44,13 @@ public:
     }
 
     /**
+        Constructs a String from a StringName
+    */
+    this()(auto ref StringName other) {
+        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 2)(&this, &other);
+    }
+
+    /**
         Makes a copy of the string.
     */
     this(ref return scope String other) {
@@ -189,10 +196,10 @@ public:
     */
     @property size_t length() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "length", 3173160232, GDExtensionInt)(&this);
 
-    /// Destructor.
-    ~this() {
-        string_name_destroy(&this);
-    }
+    /**
+        Pointer to string name in heap.
+    */
+    @property void* ptr() inout => cast(void*)data_;
 
     /**
         Constructs a StringName from a variant.
@@ -212,7 +219,15 @@ public:
         Compares equality between 2 StringName's
     */
     bool opEquals()(auto ref StringName other) {
-        return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL)(this, other);
+        return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, &other);
+    }
+
+    /**
+        Compares equality between a StringName and a D string
+    */
+    bool opEquals()(auto ref string other) const {
+        StringName p_other = StringName(other);
+        return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, &p_other);
     }
 }
 

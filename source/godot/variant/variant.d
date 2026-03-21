@@ -1,9 +1,7 @@
 module godot.variant.variant;
 import godot.core.gdextension;
-import godot.variant.string;
-import godot.variant.rect;
-import godot.variant.vector;
-import godot.variant.aabb;
+import godot.core.object;
+import godot.variant;
 import godot.globals;
 import numem;
 
@@ -57,158 +55,76 @@ public:
     }
 
     /**
-        Constructs a variant from an boolean.
+        Constructs a variant from a compatible type.
 
         Params:
             value = The new value to give the variant.
     */
-    this()(bool value) {
-        variant_from_bool(this.ptr, &value);
-    }
+    this(T)(auto ref T value) {
+        static if (is(T == bool)) {
 
-    /**
-        Constructs a variant from an integer.
+            variant_from_bool(&this, &value);
+        } else static if (__traits(isIntegral, T)) {
 
-        Params:
-            value = The new value to give the variant.
-    */
-    this(T)(T value)
-    if (__traits(isIntegral, T)) {
-        long tmp_ = value;
-        variant_from_int(this.ptr, &tmp_);
-    }
+            static if (__traits(isUnsigned, T))
+                ulong _tmp = cast(ulong)value;
+            else
+                long _tmp = cast(long)value;
+            
+            variant_from_int(&this, &_tmp);
+        } else static if (__traits(isFloating, T)) {
+            
+            double _tmp = cast(double)value;
+            variant_from_float(&this, &_tmp);
+        } else static if(is(T == Vector2)) {
 
-    /**
-        Constructs a variant from a double.
+            variant_from_vector2(&this, &value);
+        } else static if(is(T == Vector2i)) {
 
-        Params:
-            value = The new value to give the variant.
-    */
-    this(T)(T value)
-    if (__traits(isFloating, T)) {
-        double tmp_ = value;
-        variant_from_float(this.ptr, &tmp_);
-    }
+            variant_from_vector2i(&this, &value);
+        } else static if(is(T == Vector3)) {
 
-    /**
-        Constructs a variant from a D string.
+            variant_from_vector3(&this, &value);
+        } else static if(is(T == Vector3i)) {
 
-        Params:
-            value = The new value to give the variant.
-    */
-    this(string value) {
-        String str = value;
-        variant_from_string(&this, &str);
-    }
+            variant_from_vector3i(&this, &value);
+        } else static if(is(T == Vector4)) {
 
-    /**
-        Constructs a variant from a string.
+            variant_from_vector4(&this, &value);
+        } else static if(is(T == Vector4i)) {
 
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref String value) {
-        variant_from_string(&this, &value);
-    }
+            variant_from_vector4i(&this, &value);
+        } else static if (is(T == String)) {
+            
+            variant_from_string(&this, &value);
+        } else static if (is(T == string)) {
 
-    /**
-        Constructs a variant from a string name.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref StringName value) {
-        variant_from_string_name(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a vector.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Vector2 value) {
-        variant_from_vector2(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a vector.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Vector2i value) {
-        variant_from_vector2i(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a vector.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Vector3 value) {
-        variant_from_vector3(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a vector.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Vector3i value) {
-        variant_from_vector3i(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a vector.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Vector4 value) {
-        variant_from_vector4(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a vector.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Vector4i value) {
-        variant_from_vector4i(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a 2D rectangle.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Rect2 value) {
-        variant_from_rect2(&this, &value);
-    }
-
-    /**
-        Constructs a variant from a 2D rectangle.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref Rect2i value) {
-        variant_from_rect2i(&this, &value);
-    }
-
-    /**
-        Constructs a variant from an axis aligned bounding box.
-
-        Params:
-            value = The new value to give the variant.
-    */
-    this()(auto ref AABB value) {
-        variant_from_aabb(&this, &value);
+            variant_from_string(&this, gde_make_string(value));
+        } else static if (is(T == StringName)) {
+            
+            variant_from_string_name(&this, &value);
+        } else static if (is(T == RID)) {
+            
+            variant_from_rid(&this, &value);
+        } else static if (is(T == TypedArray!U, U)) {
+            
+            variant_from_array(&this, &value);
+        } else static if (is(T == TypedDictionary!U, U...)) {
+            
+            variant_from_dictionary(&this, &value);
+        } else static if (is(T == PackedArray!U, U)) {
+            
+            T.toVariantFunc(&this, &value);
+        } else static if (is(T == U[], U) && is(PackedArray!U)) {
+            
+            this(gde_to_packed_array(value));
+        } else static if (is(T : GDEObject)) {
+            if (value)
+                variant_from_object(&this, value.ptr);
+            
+        } else {
+            static assert(0, T.stringof~" cannot be put into a Variant!");
+        }
     }
 
     /**

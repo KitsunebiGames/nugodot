@@ -82,83 +82,69 @@ template godotNameOf(alias symbol, bool recursive) {
 template isVariant(T) {
     import godot.variant;
 
-    static if (is(T == bool))
+    alias Y = Unqual!T;
+
+    static if (is(Y == bool))
         enum isVariant = true;
-    else static if (__traits(isIntegral, T))
+    else static if (__traits(isIntegral, Y))
         enum isVariant = true;
-    else static if (__traits(isFloating, T))
+    else static if (__traits(isFloating, Y))
         enum isVariant = true;
-    else static if (is(T == String))
+    else static if (is(Y == String))
         enum isVariant = true;
-    else static if (is(T == Vector2))
+    else static if (is(Y == Vector2))
         enum isVariant = true;
-    else static if (is(T == Vector2i))
+    else static if (is(Y == Vector2i))
         enum isVariant = true;
-    else static if (is(T == Rect2))
+    else static if (is(Y == Rect2))
         enum isVariant = true;
-    else static if (is(T == Rect2i))
+    else static if (is(Y == Rect2i))
         enum isVariant = true;
-    else static if (is(T == Vector3))
+    else static if (is(Y == Vector3))
         enum isVariant = true;
-    else static if (is(T == Vector3i))
+    else static if (is(Y == Vector3i))
         enum isVariant = true;
-    else static if (is(T == Transform2D))
+    else static if (is(Y == Transform2D))
         enum isVariant = true;
-    else static if (is(T == Vector4))
+    else static if (is(Y == Vector4))
         enum isVariant = true;
-    else static if (is(T == Vector4i))
+    else static if (is(Y == Vector4i))
         enum isVariant = true;
-    else static if (is(T == Plane))
+    else static if (is(Y == Plane))
         enum isVariant = true;
-    else static if (is(T == Quaternion))
+    else static if (is(Y == Quaternion))
         enum isVariant = true;
-    else static if (is(T == AABB))
+    else static if (is(Y == AABB))
         enum isVariant = true;
-    else static if (is(T == Basis))
+    else static if (is(Y == Basis))
         enum isVariant = true;
-    else static if (is(T == Transform3D))
+    else static if (is(Y == Transform3D))
         enum isVariant = true;
-    else static if (is(T == Projection))
+    else static if (is(Y == Projection))
         enum isVariant = true;
-    else static if (is(T == Color))
+    else static if (is(Y == Color))
         enum isVariant = true;
-    else static if (is(T == StringName))
+    else static if (is(Y == StringName))
         enum isVariant = true;
-    else static if (is(T == NodePath))
+    else static if (is(Y == NodePath))
         enum isVariant = true;
-    else static if (is(T == RID))
+    else static if (is(Y == RID))
         enum isVariant = true;
-    else static if (is(T : GDEObject))
+    else static if (is(Y : GDEObject))
         enum isVariant = true;
-    else static if (is(T == Callable))
+    else static if (is(Y == Callable))
         enum isVariant = true;
-    else static if (is(T == Signal!U, U...))
+    else static if (is(Y == Signal!U, U...))
         enum isVariant = true;
-    else static if (is(T == TypedDictionary!U, U...))
+    else static if (is(Y == TypedDictionary!U, U...))
         enum isVariant = true;
-    else static if (is(T == TypedArray!U, U))
+    else static if (is(Y == TypedArray!U, U))
         enum isVariant = true;
-    else static if (is(Unref!T == PackedByteArray))
+    else static if (is(Y == PackedArray!U, U))
         enum isVariant = true;
-    else static if (is(Unref!T == PackedInt32Array))
+    else static if (is(Y == U[], U) && is(PackedArray!U))
         enum isVariant = true;
-    else static if (is(Unref!T == PackedInt64Array))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedFloat32Array))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedFloat64Array))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedVector2Array))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedVector3Array))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedVector4Array))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedColorArray))
-        enum isVariant = true;
-    else static if (is(Unref!T == PackedStringArray))
-        enum isVariant = true;
-    else static if (is(T == Variant))
+    else static if (is(Y == Variant))
         enum isVariant = true;
     else
         enum isVariant = false;
@@ -229,26 +215,10 @@ template variantTypeOf(T) {
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_DICTIONARY;
     else static if (is(T == TypedArray!U, U))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_ARRAY;
-    else static if (is(Unref!T == PackedByteArray))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_BYTE_ARRAY;
-    else static if (is(Unref!T == PackedInt32Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_INT32_ARRAY;
-    else static if (is(Unref!T == PackedInt64Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY;
-    else static if (is(Unref!T == PackedFloat32Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT32_ARRAY;
-    else static if (is(Unref!T == PackedFloat64Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT64_ARRAY;
-    else static if (is(Unref!T == PackedVector2Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY;
-    else static if (is(Unref!T == PackedVector3Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR3_ARRAY;
-    else static if (is(Unref!T == PackedVector4Array))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR4_ARRAY;
-    else static if (is(Unref!T == PackedColorArray))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_COLOR_ARRAY;
-    else static if (is(Unref!T == PackedStringArray))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PACKED_STRING_ARRAY;
+    else static if (is(T == PackedArray!U, U...))
+        enum variantTypeOf = T.VariantType;
+    else static if (is(T == U[], U) && is(PackedArray!U))
+        enum variantTypeOf = PackedArray!(U).VariantType;
     else static if (is(T == Variant))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VARIANT_MAX;
     else

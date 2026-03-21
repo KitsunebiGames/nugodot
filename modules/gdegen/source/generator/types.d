@@ -29,6 +29,19 @@ static immutable BASIC_TYPE_NAMES = [
     "void"
 ];
 
+static immutable PACKED_ARRAY_TYPE_NAMES = [
+    ["Byte", "ubyte"],
+    ["Int32", "int"],
+    ["Int64", "long"],
+    ["Float32", "float"],
+    ["Float64", "double"],
+    ["Vector2", "Vector2"],
+    ["Vector3", "Vector3"],
+    ["Vector4", "Vector4"],
+    ["String", "String"],
+    ["Color", "Color"]
+];
+
 /**
     A registry of GDEType types.
 */
@@ -57,6 +70,10 @@ public:
         Constructs a new type registry.
     */
     this() {
+        static foreach(paType; PACKED_ARRAY_TYPE_NAMES) {
+            this.add(new GDEPackedArray(paType[0], paType[1]));
+        }
+
         static foreach(basicType; BASIC_TYPE_NAMES) {
             this.basicType(basicType);
         }
@@ -515,9 +532,57 @@ public:
     /**
         Constructs a new typed array.
     */
-    this(GDEType type) {
+    this(GDEType type, string name) {
         this.type_ = type;
-        this.name = "TypedArray[%s]".format(type_.name);
+        this.name = name;
+    }
+    
+    /**
+        Constructs a new typed array.
+    */
+    this(GDEType type) {
+        this(type, "TypedArray[%s]".format(type.name));
+    }
+
+    /**
+        Parses the type.
+    
+        Params:
+            json =      The JSON value to parse.
+            schema =    The schema being parsed.
+            registry =  The type registry.
+    */
+    override void parse(ref JSONValue json, int schema, ref GDETypeRegistry registry) { }
+
+    /**
+        Finalizes the type.
+
+        Params:
+            registry =  The type registry.
+    */
+    override void finalize(GDETypeRegistry registry) { }
+}
+
+/**
+    A packed array.
+*/
+class GDEPackedArray : GDEType {
+private:
+    string dname;
+
+public:
+
+    /**
+        Name as a D compatible identifier.
+    */
+    override @property string d_name() => dname~"[]";
+    
+    /**
+        Constructs a new packed array.
+    */
+    this(string gdname, string dname) {
+        this.name = "Packed%sArray".format(gdname);
+        this.dname = dname;
     }
 
     /**
@@ -1520,7 +1585,7 @@ public:
         Name of the property as a valid D identifier.
     */
     override @property string d_name() => isProtected_ ?
-        this.name.toCamelCase.filterReserved ~ "Impl" :
+        this.name.toCamelCase.filterReserved~"_" :
         this.name.toCamelCase.filterReserved;
 
     /**

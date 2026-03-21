@@ -10,6 +10,7 @@ import godot.variant.variant;
 import godot.variant.color;
 import numem.core.traits;
 import numem.core.meta;
+import numem;
 
 /**
     Untyped array.
@@ -34,7 +35,7 @@ public:
     */
     static typeof(this) makeNew() {
         typeof(this) p_arr = void;
-        gde_bind_and_call_ctor!(typeof(this), 0)(p_arr);
+        gde_bind_and_call_ctor!(typeof(this), 0)(&p_arr);
         static if (!is(T == Variant)) {
             static if (is(T : GDEObject)) {
                 auto p_classVARIANT_TYPE = StringName(classNameOf!T);
@@ -120,7 +121,7 @@ public:
             size = The new size of the array.
     */
     void resize(size_t size) {
-        gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "resize", 848867239)(&this, cast(GDExtensionInt)size);
+        cast(void)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "resize", 848867239, GDExtensionInt)(&this, cast(GDExtensionInt)size);
     }
 
     /**
@@ -271,49 +272,166 @@ public:
 }
 
 /**
-    A packed array.
+    Gets a D slice from a packed Godot Array.
+
+    Params:
+        array = The packed array to "transform" to a D array.
+
+    Returns:
+        A D slice over the packed godot array.
 */
-struct PackedArray(T, string VARIANT_TYPE, uint t_size) {
+T[] gde_from_packed_array(T)(auto ref PackedArray!T array) @nogc {
+    return array.ptr[0..array.size];
+}
+
+/**
+    Wraps a D array with a packed array.
+
+    Params:
+        array = The D slice to create a new packed array from.
+
+    Returns:
+        A packed array.
+*/
+PackedArray!T gde_to_packed_array(T)(T[] array) @nogc {
+    return PackedArray!T(array);
+}
+
+/**
+    A godot packed array.
+*/
+struct PackedArray(T) {
 private:
 @nogc:
-    void[t_size] data_;
+    void[VARIANT_SIZE_PACKEDBYTEARRAY] __data;
+
+    static if (is(ArrayT == ubyte) || is(ArrayT == byte)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_BYTE_ARRAY;
+        alias ptr_idx_func = packed_byte_array_operator_index;
+        alias ptrw_idx_func = packed_byte_array_operator_index_const;
+        alias from_variant_func = packed_byte_array_from_variant;
+        alias to_variant_func = variant_from_packed_byte_array;
+    } else static if (is(ArrayT == int) || is(ArrayT == uint)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_INT32_ARRAY;
+        alias ptr_idx_func = packed_int32_array_operator_index;
+        alias ptrw_idx_func = packed_int32_array_operator_index_const;
+        alias from_variant_func = packed_int32_array_from_variant;
+        alias to_variant_func = variant_from_packed_int32_array;
+    } else static if (is(ArrayT == long) || is(ArrayT == ulong)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY;
+        alias ptr_idx_func = packed_int64_array_operator_index;
+        alias ptrw_idx_func = packed_int64_array_operator_index_const;
+        alias from_variant_func = packed_int64_array_from_variant;
+        alias to_variant_func = variant_from_packed_int64_array;
+    } else static if (is(ArrayT == float)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT32_ARRAY;
+        alias ptr_idx_func = packed_float32_array_operator_index;
+        alias ptrw_idx_func = packed_float32_array_operator_index_const;
+        alias from_variant_func = packed_float32_array_from_variant;
+        alias to_variant_func = variant_from_packed_float32_array;
+    } else static if (is(ArrayT == double)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT64_ARRAY;
+        alias ptr_idx_func = packed_float64_array_operator_index;
+        alias ptrw_idx_func = packed_float64_array_operator_index_const;
+        alias from_variant_func = packed_float64_array_from_variant;
+        alias to_variant_func = variant_from_packed_float64_array;
+    } else static if (is(ArrayT == String)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_STRING_ARRAY;
+        alias ptr_idx_func = packed_string_array_operator_index;
+        alias ptrw_idx_func = packed_string_array_operator_index_const;
+        alias from_variant_func = packed_string_array_from_variant;
+        alias to_variant_func = variant_from_packed_string_array;
+    } else static if (is(ArrayT == Vector2)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY;
+        alias ptr_idx_func = packed_vector2_array_operator_index;
+        alias ptrw_idx_func = packed_vector2_array_operator_index_const;
+        alias from_variant_func = packed_vector2_array_from_variant;
+        alias to_variant_func = variant_from_packed_vector2_array;
+    } else static if (is(ArrayT == Vector3)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR3_ARRAY;
+        alias ptr_idx_func = packed_vector3_array_operator_index;
+        alias ptrw_idx_func = packed_vector3_array_operator_index_const;
+        alias from_variant_func = packed_vector3_array_from_variant;
+        alias to_variant_func = variant_from_packed_vector3_array;
+    } else static if (is(ArrayT == Vector4)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR4_ARRAY;
+        alias ptr_idx_func = packed_vector4_array_operator_index;
+        alias ptrw_idx_func = packed_vector4_array_operator_index_const;
+        alias from_variant_func = packed_vector4_array_from_variant;
+        alias to_variant_func = variant_from_packed_vector4_array;
+    } else static if (is(ArrayT == Color)) {
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_PACKED_COLOR_ARRAY;
+        alias ptr_idx_func = packed_color_array_operator_index;
+        alias ptrw_idx_func = packed_color_array_operator_index_const;
+        alias from_variant_func = packed_color_array_from_variant;
+        alias to_variant_func = variant_from_packed_color_array;
+    } else {
+        static assert(0, "No PackedArray type for type "~T.stringof);
+    }
 
 public:
-    /// The type of this variant.
-    enum VARIANT_TYPE = variantTypeOf!(typeof(this));
-
-    // Disable default construction
-    @disable this();
 
     /**
-        The size of the array.
+        The unqualified type of the packed array's contents.
     */
-    @property size_t size() => cast(size_t)gde_bind_and_call!(VARIANT_TYPE, "size", 3173160232, GDExtensionInt)(&this);
+    alias ArrayT = Unqual!T;
 
     /**
-        Whether the array is empty.
+        The godot variant type of the packed array
     */
-    @property bool isEmpty() => gde_bind_and_call!(VARIANT_TYPE, "is_empty", 3918633141, bool)(&this);
+    enum VariantType = VARIANT_TYPE;
 
     /**
-        Whether this array is valid.
+        Alias to function which can be used to conver the packed array
+        to a variant.
     */
-    @property bool isValid() => this != typeof(this).init;
+    alias toVariantFunc = to_variant_func;
+    
+    /**
+        Size of the packed array.
+    */
+    @property GDExtensionInt size() => gde_bind_and_call!(VARIANT_TYPE, "size", 3173160232, GDExtensionInt)(&this);
 
     /**
-        Makes a new instance of the given array type.
+        Pointer to the data stored in the packed array.
     */
-    static typeof(this) makeNew() {
-        typeof(this) p_arr = void;
-        gde_bind_and_call_ctor!(typeof(this), 0)(p_arr);
-        return p_arr;
+    @property T* ptrw() => cast(T*)ptr_idx_func(&this, 0);
+
+    /**
+        Writable pointer to the data stored in the packed array.
+    */
+    @property const(T)* ptr() => cast(const(T)*)ptrw_idx_func(&this, 0);
+
+    /**
+        Constructs a new packed array from a D slice.
+
+        Params:
+            data = The slice of data to construct this packed array with.
+    */
+    this(T[] data) {
+        gde_bind_and_call_ctor!(VARIANT_TYPE, 0)(&this);
+        this.resize(data.length);
+        nu_memcpy(this.ptrw, data.ptr, T.sizeof*data.length);
     }
 
     /**
-        Clears the array.
+        Constructs a packed array from a variant.
+
+        Params:
+            variant = The variant to get the array from.
     */
-    void clear() {
-        gde_bind_and_call!(VARIANT_TYPE, "clear", 3218959716)(&this);
+    this(Variant variant) {
+        from_variant_func(&this, &variant);
+    }
+
+    /**
+        Constructs a copy of this packed array.
+
+        Params:
+            other = The other array to construct this array from.
+    */
+    this(typeof(this) other) {
+        gde_bind_and_call_ctor!(VARIANT_TYPE, 1)(&this, &other);
     }
 
     /**
@@ -327,174 +445,28 @@ public:
     }
 
     /**
-        Removes an element from the array at the given index.
+        Indexes the array
 
         Params:
-            index = The index to remove the element at.
+            index = The index to get from the array.
     */
-    void removeAt(size_t index) {
-        gde_bind_and_call!(VARIANT_TYPE, "remove_at", 2823966027)(&this, cast(GDExtensionInt)index);
+    T opIndex(size_t index) {
+        if (T* element = cast(T*)ptr_idx_func(&this, index))
+            return *element;
+        return T.init;
     }
 
     /**
-        Indexes into the array.
-
-        Params:
-            index = The index to fetch the element from.
-        
-        Returns:
-            The value at the given index.
+        Slice operator overloading.
     */
-    auto ref T opIndex()(size_t index) {
-        static if (__traits(isIntegral, T)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 4103005248, GDExtensionInt)(&this, cast(GDExtensionInt)index);
-        } else static if (__traits(isFloating, T)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 1401583798, double)(&this, cast(GDExtensionInt)index);
-        } else static if (is(T == Vector2)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 2609058838, Vector2)(&this, cast(GDExtensionInt)index);
-        } else static if (is(T == Vector3)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 1394941017, Vector3)(&this, cast(GDExtensionInt)index);
-        } else static if (is(T == Vector4)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 1227817084, Vector4)(&this, cast(GDExtensionInt)index);
-        } else static if (is(T == Color)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 2972831132, Color)(&this, cast(GDExtensionInt)index);
-        } else static if (is(T == String)) {
-            return cast(T)gde_bind_and_call!(VARIANT_TYPE, "get", 2162347432, String)(&this, cast(GDExtensionInt)index);
-        } else {
-            static assert(0, "Invalid PackedArray type "~T.stringof);
-        }
+    T[] opIndex() {
+        return ptrw[0..size];
     }
 
     /**
-        Indexes into the array.
-
-        Params:
-            value = The value to set at the given index.
-            index = The index to fetch the element from.
+        Dollar operator overloading.
     */
-    void opIndexAssign()(auto ref T value, size_t index) {
-        static if (__traits(isIntegral, T)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 3638975848)(&this, cast(GDExtensionInt)index, cast(GDExtensionInt)value);
-        } else static if (__traits(isFloating, T)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 1113000516)(&this, cast(GDExtensionInt)index, cast(double)value);
-        } else static if (is(T == Vector2)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 635767250)(&this, cast(GDExtensionInt)index, value);
-        } else static if (is(T == Vector3)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 3975343409)(&this, cast(GDExtensionInt)index, value);
-        } else static if (is(T == Vector4)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 1350366223)(&this, cast(GDExtensionInt)index, value);
-        } else static if (is(T == Color)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 1444096570)(&this, cast(GDExtensionInt)index, value);
-        } else static if (is(T == String)) {
-            gde_bind_and_call!(VARIANT_TYPE, "set", 725585539)(&this, cast(GDExtensionInt)index, value);
-        } else {
-            static assert(0, "Invalid PackedArray type "~T.stringof);
-        }
-    }
-
-    /**
-        Appends a value to the array.
-
-        Params:
-            value = The value to append.
-    */
-    void opOpAssign(string op="~", Y)(auto ref Y value) {
-        static if (is(Y == typeof(this))) {
-            
-            // Append array.
-            static if (is(Y == PackedByteArray)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 791097111)(&this, value);
-            } else static if (is(Y == PackedInt32Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 1087733270)(&this, value);
-            } else static if (is(Y == PackedInt64Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 2090311302)(&this, value);
-            } else static if (is(Y == PackedFloat32Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 2981316639)(&this, value);
-            } else static if (is(Y == PackedFloat64Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 792078629)(&this, value);
-            } else static if (is(Y == PackedVector2Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 3887534835)(&this, value);
-            } else static if (is(Y == PackedVector3Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 203538016)(&this, value);
-            } else static if (is(Y == PackedVector4Array)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 537428395)(&this, value);
-            } else static if (is(Y == PackedColorArray)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 798822497)(&this, value);
-            } else static if (is(Y == PackedStringArray)) {
-                gde_bind_and_call!(VARIANT_TYPE, "append_array", 1120103966)(&this, value);
-            }
-        } else static if (is(Y == T)) {
-
-            // Insert single element
-            static if (__traits(isIntegral, T)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 694024632, bool)(&this, cast(GDExtensionInt)value);
-            } else static if (__traits(isFloating, T)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 4094791666, bool)(&this, cast(double)value);
-            } else static if (is(T == Vector2)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 4188891560, bool)(&this, value);
-            } else static if (is(T == Vector3)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 3295363524, bool)(&this, value);
-            } else static if (is(T == Vector4)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 3289167688, bool)(&this, value);
-            } else static if (is(T == Color)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 1007858200, bool)(&this, value);
-            } else static if (is(T == String)) {
-                gde_bind_and_call!(VARIANT_TYPE, "push_back", 816187996, bool)(&this, value);
-            } else {
-                static assert(0, "Invalid PackedArray type "~T.stringof);
-            }
-        } else {
-            static assert(0, "Incompatible type "~Y.stringof~" for this array of type "~T.stringof~".");
-        }
+    size_t opDollar() {
+        return size;
     }
 }
-
-/**
-    A packed array of bytes.
-*/
-alias PackedByteArray = PackedArray!(ubyte, "PackedByteArray", VARIANT_SIZE_PACKEDBYTEARRAY);
-
-/**
-    A packed array of 32-bit integers.
-*/
-alias PackedInt32Array = PackedArray!(int, "PackedInt32Array", VARIANT_SIZE_PACKEDINT32ARRAY);
-
-/**
-    A packed array of 64-bit integers.
-*/
-alias PackedInt64Array = PackedArray!(long, "PackedInt64Array", VARIANT_SIZE_PACKEDINT64ARRAY);
-
-/**
-    A packed array of 32-bit floating point numbers.
-*/
-alias PackedFloat32Array = PackedArray!(float, "PackedFloat32Array", VARIANT_SIZE_PACKEDFLOAT32ARRAY);
-
-/**
-    A packed array of 64-bit floating point numbers.
-*/
-alias PackedFloat64Array = PackedArray!(double, "PackedFloat64Array", VARIANT_SIZE_PACKEDFLOAT64ARRAY);
-
-/**
-    A packed array of Godot Strings.
-*/
-alias PackedStringArray = PackedArray!(String, "PackedStringArray", VARIANT_SIZE_PACKEDSTRINGARRAY);
-
-/**
-    A packed array of 2D vectors.
-*/
-alias PackedVector2Array = PackedArray!(Vector2, "PackedVector2Array", VARIANT_SIZE_PACKEDVECTOR2ARRAY);
-
-/**
-    A packed array of 3D vectors.
-*/
-alias PackedVector3Array = PackedArray!(Vector3, "PackedVector3Array", VARIANT_SIZE_PACKEDVECTOR3ARRAY);
-
-/**
-    A packed array of 4D vectors.
-*/
-alias PackedVector4Array = PackedArray!(Vector4, "PackedVector4Array", VARIANT_SIZE_PACKEDVECTOR4ARRAY);
-
-/**
-    A packed array of colors.
-*/
-alias PackedColorArray = PackedArray!(Color, "PackedColorArray", VARIANT_SIZE_PACKEDCOLORARRAY);
