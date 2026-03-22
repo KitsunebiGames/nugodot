@@ -575,7 +575,7 @@ public:
     /**
         Name as a D compatible identifier.
     */
-    override @property string d_name() => dname~"[]";
+    override @property string d_name() => "PackedArray!"~dname;
     
     /**
         Constructs a new packed array.

@@ -1,3 +1,11 @@
+/**
+    Binding to Godot's String Variants
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.string;
 import godot.variant.variant;
 import godot.core.gdextension.iface;
@@ -37,7 +45,17 @@ public:
     }
 
     /**
-        Constructs a string from a variant.
+        Copy-constructor
+    */
+    this(ref return scope String other) {
+        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 1)(&this, &other);
+    }
+
+    /**
+        Constructs a String from a variant.
+
+        Params:
+            variant = The variant to unwrap.
     */
     this()(auto ref Variant variant) {
         string_from_variant(&this, &variant);
@@ -46,15 +64,8 @@ public:
     /**
         Constructs a String from a StringName
     */
-    this()(auto ref StringName other) {
+    this(ref return scope StringName other) {
         gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 2)(&this, &other);
-    }
-
-    /**
-        Makes a copy of the string.
-    */
-    this(ref return scope String other) {
-        this.data_[0..$] = other.data_[0..$];
     }
 
     /**
@@ -201,8 +212,30 @@ public:
     */
     @property void* ptr() inout => cast(void*)data_;
 
+    /// Destructor
+    ~this() {
+        string_name_destroy(&this);
+    }
+
+    /**
+        Copy-constructor
+    */
+    this(ref return scope StringName other) {
+        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, 1)(&this, &other);
+    }
+
+    /**
+        Copy-constructor
+    */
+    this(ref String other) {
+        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, 2)(&this, &other);
+    }
+
     /**
         Constructs a StringName from a variant.
+
+        Params:
+            variant = The variant to unwrap.
     */
     this(ref Variant variant) {
         string_name_from_variant(&this, &variant);
@@ -228,6 +261,20 @@ public:
     bool opEquals()(auto ref string other) const {
         StringName p_other = StringName(other);
         return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, &p_other);
+    }
+
+    /**
+        Gets a string representation of the godot StringName.
+
+        Note:
+            This string must be freed with $(D nu_freea)!
+        
+        Returns:
+            A D string representation of this string.
+    */
+    string toString() const {
+        String tmp = String(cast(StringName)this);
+        return tmp.toString();
     }
 }
 
@@ -304,7 +351,10 @@ public:
     }
 
     /**
-        Constructs a StringName from a variant.
+        Constructs a NodePath from a variant.
+
+        Params:
+            variant = The variant to unwrap.
     */
     this(ref Variant variant) {
         node_path_from_variant(&this, &variant);

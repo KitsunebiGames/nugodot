@@ -430,16 +430,10 @@ public:
         
         // Bound class methods
         if (auto mthd_t = cast(GDEMethod)type) {
-            if (mthd_t.isStatic)
-                return;
-
             this.writenls();
             this.writeDDOC(mthd_t.ddoc);
 
             this.writef("@gd_name(\"%s\") ", mthd_t.name);
-            if (mthd_t.isStatic)
-                this.write("static ");
-
             if (mthd_t.isVararg) {
                 string[] params_ = mthd_t.params.toParamList(true)~["Args args"];
                 this.writef("%s %s(Args...)(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, params_.join(", "));
@@ -454,6 +448,21 @@ public:
                     else
                         this.writefln("return gde_ptrcall!(%s)(ptr, __bind, args);", mthd_t.returnType.d_full_name);
                 this.endBlock();
+            } else if (mthd_t.isStatic) {
+                this.write("static ");
+                this.writef("%s %s(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, mthd_t.params.toParamList(true).join(", "));
+                this.beginBlock();
+                    this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
+                    this.writeln("if (!__bind)");
+                    this.indent(4);
+                        this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
+                    this.unindent();
+                    if (mthd_t.params.length > 0)
+                        this.writefln("return gde_ptrcall_static!(%s)(__bind, %s);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
+                    else
+                        this.writefln("return gde_ptrcall_static!(%s)(__bind);", mthd_t.returnType.d_full_name);
+                this.endBlock();
+
             } else {
                 if (!mthd_t.isStatic) {
                     if (!mthd_t.isVirtual)
@@ -525,7 +534,7 @@ public:
         // Function definitions
         if (auto func_t = cast(GDEFunc)type) {
             this.writeDDOC(func_t.ddoc);
-            this.writefln("%s function(%s) %s;", func_t.returnType.name, func_t.params.toParamList(true).join(", "), func_t.name);
+            this.writefln("__gshared %s function(%s) %s;", func_t.returnType.name, func_t.params.toParamList(true).join(", "), func_t.name);
             return;
         }
 

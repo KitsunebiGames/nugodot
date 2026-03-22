@@ -1,3 +1,11 @@
+/**
+    NuGodot's GDExtension registration system.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.core.registration;
 import godot.core.object;
 import godot.core.traits;
@@ -38,6 +46,16 @@ struct GDEClassRegistrationInfo {
         Un-registration function for the class.
     */
     extern(C) void function() @nogc nothrow unregistration;
+
+    /**
+        Function called after all registration is done.
+    */
+    extern(D) void function() @nogc nothrow post_registration;
+
+    /**
+        Function called before all unregistration is done.
+    */
+    extern(D) void function() @nogc nothrow pre_unregistration;
 }
 
 /**
@@ -105,6 +123,20 @@ if (is(T : GDEObject)) {
     private __gshared auto _bind_funcinst = &gde_bind_class!T;
     private __gshared auto _unbind_funcinst = &gde_unbind_class!T;
 
+    template _post_registration(T) {
+        static if (is(typeof(T.__gde_postregistration)))
+            enum _post_registration = &T.__gde_postregistration;
+        else
+            enum _post_registration = null;
+    }
+
+    template _pre_unregistration(T) {
+        static if (is(typeof(T.__gde_preunregistration)))
+            enum _pre_unregistration = &T.__gde_preunregistration;
+        else
+            enum _pre_unregistration = null;
+    }
+
     // Add documentation
     enum XMLDOC = xmldocOf!T;
 
@@ -116,6 +148,8 @@ if (is(T : GDEObject)) {
         docs: XMLDOC.length > 0 ? XMLDOC : null,
         registration: cast(typeof(GDEClassRegistrationInfo.registration))&gde_bind_class!T,
         unregistration: cast(typeof(GDEClassRegistrationInfo.unregistration))&gde_unbind_class!T,
+        post_registration: cast(typeof(GDEClassRegistrationInfo.post_registration))_post_registration!T,
+        pre_unregistration: cast(typeof(GDEClassRegistrationInfo.pre_unregistration))_pre_unregistration!T,
     );
 }
 

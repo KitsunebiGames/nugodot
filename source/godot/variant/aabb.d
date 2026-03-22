@@ -1,3 +1,11 @@
+/**
+    Binding to Godot's AABB Variant
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.aabb;
 import godot.core.gdextension.iface;
 import godot.variant.vector;
@@ -19,6 +27,11 @@ struct AABB {
             gd_float depth;
         }
     }
+
+    /**
+        The type of the variant.
+    */
+    enum VariantType = GDEXTENSION_VARIANT_TYPE_AABB;
 
     /**
         The volume of the bounding box.

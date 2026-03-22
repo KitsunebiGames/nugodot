@@ -1,6 +1,11 @@
 /**
     Module which implements the needed infrastructure to wrap
     Godot objects with D objects.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
 */
 module godot.core.object;
 import godot.core.gdextension;
@@ -41,7 +46,12 @@ public:
     /**
         Gets the underlying godot object pointer.
     */
-    final @property GDExtensionObjectPtr ptr() @system nothrow pure => nativePtr_;
+    final @property ref GDExtensionObjectPtr ptr() @system nothrow pure => nativePtr_;
+
+    /**
+        Instance ID of the object.
+    */
+    final @property GDObjectInstanceID id() @system nothrow => object_get_instance_id(nativePtr_);
 
     /**
         Sets the given property to the given value.
@@ -102,7 +112,9 @@ public:
         Performs casts
     */
     T opCast(T)() const {
-        static if (is(T : GDEObject)) {
+        static if (is(T == GDEObject)) {
+            return reinterpret_cast!GDEObject(this);
+        } else static if (is(T : GDEObject)) {
             return gde_class_cast!T(cast(Unqual!(typeof(this)))this);
         } else static if (is(T == Object)) {
             return reinterpret_cast!(Object)(this);
@@ -149,6 +161,54 @@ if (is(T : GDEObject)) {
     import numem.core.hooks : nu_malloc, nu_memcpy;
     import godot.variant : Signal;
 
+    import core.stdc.stdio : printf;
+
+    static if (!__traits(isAbstractClass, T)) {
+
+        // NOTE:    Allocate and base-initialize the class.
+        //          This will NOT call any constructors.
+        const void[] __initSym = __traits(initSymbol, T);
+        T obj = cast(T)nu_malloc(AllocSize!T);
+        nu_memcpy(cast(void*)obj, __initSym.ptr, __initSym.length);
+        (cast(GDEObject)obj).nativePtr_ = ptr;
+        
+        // Apply our wrapper to the object.
+        StringName* p_classname = gde_make_string_name(classNameOf!T);
+        object_set_instance(ptr, p_classname, cast(void*)obj);
+        object_set_instance_binding(ptr, __godot_class_library, cast(void*)obj, &__nu_gde_instance_callbacks!T);
+
+        // Wrap signals.
+        StringName* p_signalname;
+        static foreach(signal; boundSignalsOf!T) {
+            p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
+            __traits(getMember, obj, signal) = typeof(__traits(getMember, T, signal))(obj, p_signalname);
+            gde_free_string_name(p_signalname);
+        }
+
+        return obj;
+    } else {
+
+        assert(0, "Tried to instantiate an abstract class!");
+        return null;
+    }
+}
+
+/**
+    Allocates a class for the given type and object pointer.
+
+    Params:
+        ptr = The object pointer to associate with the class.
+    
+    Returns:
+        A newly allocated wrapper class.
+*/
+T gde_alloc_singleton(T)(GDExtensionObjectPtr ptr) @system @nogc
+if (is(T : GDEObject)) {
+    import numem.core.hooks : nu_malloc, nu_memcpy;
+    import godot.variant : Signal;
+
+    import core.stdc.stdio : printf;
+
     static if (!__traits(isAbstractClass, T)) {
 
         // NOTE:    Allocate and base-initialize the class.
@@ -161,15 +221,15 @@ if (is(T : GDEObject)) {
         (cast(GDEObject)objptr).nativePtr_ = ptr;
         
         // Apply our wrapper to the object.
-        StringName __className = StringName(classNameOf!T);
-        object_set_instance(ptr, &__className, cast(void*)obj);
-        object_set_instance_binding(ptr, __godot_class_library, cast(void*)obj, &__nu_gde_instance_callbacks!T);
         static if (is(typeof(() => T.init.__ctor())))
             obj.__ctor();
 
         // Wrap signals.
+        StringName* p_signalname;
         static foreach(signal; boundSignalsOf!T) {
-            __traits(getMember, obj, signal) = typeof(__traits(getMember, T, signal))(obj, StringName(signalNameOf!(__traits(getMember, T, signal))));
+            p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
+            __traits(getMember, obj, signal) = typeof(__traits(getMember, T, signal))(obj, p_signalname);
+            gde_free_string_name(p_signalname);
         }
 
         return obj;
@@ -195,12 +255,12 @@ if (is(TFrom : GDEObject) && is(TTo : GDEObject)) {
     static if (is(TTo : TFrom)) {
 
         // Downcast
-        return cast(TTo)cast(void*)from;
+        return reinterpret_cast!(TTo)(from);
     } else {
         
         // Already compatible upcast.
         if (from.classinfo is typeid(TTo))
-            return cast(TTo)cast(void*)from;
+            return reinterpret_cast!(TTo)(from);
         
         void* p_gdobject = from.nativePtr_;
         void* p_dobject = cast(void*)from;
@@ -232,7 +292,7 @@ if (is(TFrom : GDEObject) && is(TTo : GDEObject)) {
 
                 // 4.   Update the godot instance binding.
                 object_set_instance(nptr, &p_classname, p_dobject);
-                return cast(TTo)p_dobject;
+                return reinterpret_cast!(TTo)(p_dobject);
             }
         }
 

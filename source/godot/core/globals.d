@@ -1,5 +1,10 @@
 /**
     Global core functions for Godot.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
 */
 module godot.core.globals;
 import godot.core.gdextension;

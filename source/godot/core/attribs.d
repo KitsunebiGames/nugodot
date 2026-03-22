@@ -1,8 +1,12 @@
 /**
     Attributes that affect the godot binding process.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
 */
 module godot.core.attribs;
-
 import godot.globals;
 
 /**
@@ -20,6 +24,11 @@ struct class_icon { string path; }
     is attached to.
 */
 struct gd_name { string name; }
+
+/**
+    Allows a class to run in the editor.
+*/
+struct gd_editor;
 
 /**
     Annotates that the given class member should be hidden from

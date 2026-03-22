@@ -1,3 +1,11 @@
+/**
+    Binding to Godot's Callable Variant
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.callable;
 import godot.variant.string;
 import godot.core.gdextension.iface;
@@ -12,6 +20,13 @@ struct Callable {
 private:
 @nogc:
     void[VARIANT_SIZE_CALLABLE] data_;
+
+public:
+
+    /**
+        The type of the variant.
+    */
+    enum VariantType = GDEXTENSION_VARIANT_TYPE_CALLABLE;
     
     /**
         Creates a new callable that calls a method on a given variant.
@@ -65,5 +80,15 @@ private:
     */
     RetT opCall(RetT, Args...)(Args args) {
         return this.call!(RetT, Args)(args);
+    }
+    
+    /**
+        Constructs a Callable from a variant.
+
+        Params:
+            variant = The variant to unwrap.
+    */
+    this()(auto ref Variant variant) {
+        callable_from_variant(&this, &variant);
     }
 }

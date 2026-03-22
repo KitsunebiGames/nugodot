@@ -1,14 +1,39 @@
+/**
+    Binding to Godot's Rectangle Variants
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.rect;
 import godot.core.gdextension.iface;
-import godot.variant.vector;
 import numem.core.math;
+import godot.variant;
 
 /**
     A godot rectangle.
 */
 struct RectImpl(T) {
+private:
+@nogc:
+
+    static if (is(T == gd_float)) {
+
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_RECT2;
+        alias fromVariantFunc = rect2_from_variant;
+    } else static if (is(T == int)) {
+
+        enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_RECT2I;
+        alias fromVariantFunc = rect2i_from_variant;
+    } else {
+
+        static assert(0, typeof(this).stringof~" not supported by Godot.");
+    }
+
 public:
 @nogc:
+
     union {
         T[4] rect = 0;
 
@@ -25,6 +50,11 @@ public:
     }
 
     /**
+        The type of the variant.
+    */
+    enum VariantType = VARIANT_TYPE;
+
+    /**
         The area of the rectangle.
     */
     @property T area() => width * height;
@@ -38,6 +68,16 @@ public:
         The center of the rectangle.
     */
     @property VectorImpl!(T, 2) center() => VectorImpl!(T, 2)(x + (width / 2), y + (height / 2));
+
+    /**
+        Constructs a Rectangle from a variant.
+
+        Params:
+            variant = The variant to unwrap.
+    */
+    this()(auto ref Variant variant) {
+        fromVariantFunc(&this, &variant);
+    }
 
     /**
         Constructs a new rectangle.

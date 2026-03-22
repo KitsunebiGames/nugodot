@@ -1,3 +1,12 @@
+/**
+    Module which implements functions to create and delete
+    Godot objects.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.core.lifetime;
 import godot.core.gdextension;
 import godot.core.object;
@@ -22,24 +31,29 @@ Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
         static if (isGodotNativeClass!T) {
 
             // Base godot objects.
-            StringName className = StringName(classNameOf!T);
-            auto ptr = classdb_construct_object2(&className);
-            auto obj_ = gde_get!T(ptr);
+            StringName* p_classname = gde_make_string_name(classNameOf!T);
+            auto ptr = classdb_construct_object2(p_classname);
+            auto obj_ = gde_alloc_class!T(ptr);
 
             // Call our constructor.
-            static if (is(T.__ctor))
+            static if (is(typeof(T.__ctor)))
                 obj_.__ctor(args);
+
+            gde_free_string_name(p_classname);
             return obj_;
 
         } else static if (is(T PT == super)) {
     
             // Extension objects.
-            StringName parentClassName = StringName(classNameOf!PT);
-            auto ptr = classdb_construct_object2(&parentClassName);
-            auto obj_ = gde_get!T(ptr);
+            StringName* p_classname = gde_make_string_name(classNameOf!PT);
+            auto ptr = classdb_construct_object2(p_classname);
+            auto obj_ = gde_alloc_class!T(ptr);
 
             // Call our constructor.
-            obj_.__ctor(args);
+            static if (is(typeof(T.__ctor)))
+                obj_.__ctor(args);
+            
+            gde_free_string_name(p_classname);
             return obj_;
         } else {
             static assert(0, "No super class was found for the type?!");

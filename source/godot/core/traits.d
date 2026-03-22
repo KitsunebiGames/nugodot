@@ -1,5 +1,10 @@
 /**
     Traits for Godot type introspection.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
 */
 module godot.core.traits;
 import godot.core.gdextension;
@@ -148,6 +153,29 @@ template isVariant(T) {
         enum isVariant = true;
     else
         enum isVariant = false;
+}
+
+/**
+    Gets the equivalent wrapped type of a native D type.
+
+    Params:
+        T = The type to query.
+*/
+template wrapTypeOf(T) {
+    import godot.variant;
+
+    static if (is(T : GDEObject))
+        alias wrapTypeOf = GDExtensionObjectPtr;
+    else static if (is(T == string))
+        alias wrapTypeOf = String;
+    else static if (is(T == U[], U) && is(PackedArray!U))
+        alias wrapTypeOf = PackedArray!U;
+    else static if (__traits(isIntegral, T))
+        alias wrapTypeOf = GDExtensionInt;
+    else static if (__traits(isFloating, T))
+        alias wrapTypeOf = double;
+    else
+        alias wrapTypeOf = T;
 }
 
 /**
@@ -374,7 +402,7 @@ template getPropertyExport(alias member) {
     import godot.resource;
     import godot.variant;
 
-    static if (is(member)) {
+    static if (is(typeof(member))) {
         alias MT = typeof(member);
         static if (hasUDA!(member, gd_export_mutliline)) {
             

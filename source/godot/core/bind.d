@@ -1,3 +1,11 @@
+/**
+    Subsystem that binds classes in a D-agnostic way.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.core.bind;
 import godot.core.gdextension;
 import godot.core.lifetime;
@@ -41,14 +49,14 @@ if (is(T : GDEObject)) {
             is_virtual: false,
             is_abstract: __traits(isAbstractClass, T),
             is_exposed: true,
-            is_runtime: true,
+            is_runtime: !hasUDA!(T, gd_editor),
             icon_path: __gde_icon_path_ptr,
             to_string_func: cast(typeof(GDExtensionClassCreationInfo5.to_string_func))&__gde_class_to_string_func,
             create_instance_func: cast(typeof(GDExtensionClassCreationInfo5.create_instance_func))&ctors.__gde_class_create,
             free_instance_func: cast(typeof(GDExtensionClassCreationInfo5.free_instance_func))&ctors.__gde_class_free,
             recreate_instance_func: cast(typeof(GDExtensionClassCreationInfo5.recreate_instance_func))&ctors.__gde_class_recreate,
-            get_virtual_call_data_func: &__gde_class_get_virtual_call_data!(T),
-            call_virtual_with_data_func: &__gde_class_call_virtual_with_data!(T),
+            get_virtual_call_data_func: cast(typeof(GDExtensionClassCreationInfo5.get_virtual_call_data_func))&__gde_class_get_virtual_call_data!(T),
+            call_virtual_with_data_func: cast(typeof(GDExtensionClassCreationInfo5.call_virtual_with_data_func))&__gde_class_call_virtual_with_data!(T),
 
             // Optional overrides.
             notification_func: 
@@ -96,14 +104,16 @@ if (is(T : GDEObject)) {
         // Instance constructor forwarder.
         pragma(mangle, gdeMangleOf!(T, __gde_class_create))
         extern(C) __gshared GDExtensionObjectPtr __gde_class_create(void* p_userdata, GDExtensionBool p_postinit) @nogc {
-            StringName parentClassName = classNameOf!PT;
-            void* pObject = classdb_construct_object2(&parentClassName);
+            StringName* p_classname = gde_make_string_name(classNameOf!PT);
+            
+            void* pObject = classdb_construct_object2(p_classname);
             cast(void)gde_alloc_class!T(pObject);
-
             if (p_postinit) {
                 auto p_bind = gde_get_method_bind("Object", "notification", GDEXTENSION_NOTIFICATION_FUNC_HASH);
                 gde_ptrcall(pObject, p_bind, 0, false);
             }
+
+            gde_free_string_name(p_classname);
             return pObject;
         }
 
@@ -152,8 +162,8 @@ if (is(T : GDEObject)) {
     enum paramCount = __traits(getMember, T, signal).ArgsT.length;
     enum signalName = signalNameOf!(__traits(getMember, T, signal));
     
-    StringName p_classname = StringName(classNameOf!T);
-    StringName p_signalname = StringName(signalName);
+    StringName* p_classname = gde_make_string_name(classNameOf!T);
+    StringName* p_signalname = gde_make_string_name(signalName);
 
     // Fill out parameters.
     GDExtensionPropertyInfo[paramCount] p_params;
@@ -162,11 +172,14 @@ if (is(T : GDEObject)) {
     }
 
     // Register signal
-    classdb_register_extension_class_signal(__godot_class_library, &p_classname, &p_signalname, p_params.ptr, cast(GDExtensionInt)p_params.length);
+    classdb_register_extension_class_signal(__godot_class_library, p_classname, p_signalname, p_params.ptr, cast(GDExtensionInt)p_params.length);
 
     // Clean up parameters.
     static foreach(i; 0..paramCount)
         gde_destroy_property_info(p_params[i]);
+    
+    gde_free_string_name(p_signalname);
+    gde_free_string_name(p_classname);
 }
 
 void gde_bind_method(T, alias method)(string name = null) @nogc
@@ -176,8 +189,8 @@ if (is(T : GDEObject)) {
     string method_name = name ? name : methodName;
     string class_name = classNameOf!T;
 
-    StringName p_classname = StringName(class_name);
-    StringName p_methodname = StringName(method_name);
+    StringName* p_classname = gde_make_string_name(class_name);
+    StringName* p_methodname = gde_make_string_name(method_name);
     GDExtensionClassMethodArgumentMetadata[paramCount] p_param_metas;
     GDExtensionPropertyInfo[paramCount] p_params;
     GDExtensionClassMethodArgumentMetadata p_return_meta;
@@ -196,7 +209,7 @@ if (is(T : GDEObject)) {
 
         // Final & static functions.
         GDExtensionClassMethodInfo p_methodinfo = GDExtensionClassMethodInfo(
-            name: &p_methodname,
+            name: p_methodname,
             call_func: gde_wrap_method_call!(T, method)(),
             ptrcall_func: gde_wrap_method_ptrcall!(T, method)(),
             method_flags: cast(uint)p_methodflags,
@@ -207,13 +220,13 @@ if (is(T : GDEObject)) {
             arguments_info: p_params.ptr,
             arguments_metadata: p_param_metas.ptr,
         );
-        classdb_register_extension_class_method(__godot_class_library, &p_classname, &p_methodinfo);
+        classdb_register_extension_class_method(__godot_class_library, p_classname, &p_methodinfo);
 
     } else {
 
         // Virtual functions.
         GDExtensionClassVirtualMethodInfo p_virtualinfo = GDExtensionClassVirtualMethodInfo(
-            name: &p_methodname,
+            name: p_methodname,
             method_flags: cast(uint)p_methodflags,
             return_value: p_return,
             return_value_metadata: p_return_meta,
@@ -221,18 +234,19 @@ if (is(T : GDEObject)) {
             arguments: p_params.ptr,
             arguments_metadata: p_param_metas.ptr,
         );
-        classdb_register_extension_class_virtual_method(__godot_class_library, &p_classname, &p_virtualinfo);
+        classdb_register_extension_class_virtual_method(__godot_class_library, p_classname, &p_virtualinfo);
     }
 
     // Clean up parameters.
     static foreach(i; 0..paramCount)
         gde_destroy_property_info(p_params[i]);
     gde_destroy_property_info(p_return);
+    gde_free_string_name(p_methodname);
+    gde_free_string_name(p_classname);
 }
 
 void gde_bind_property(T, alias memberName)() @nogc {
 
-    StringName p_classname = StringName(classNameOf!T);
     enum gdMemberName = toSnakeCase!(memberName);
 
     alias propType = getPropertyType!(T, memberName);
@@ -256,6 +270,7 @@ void gde_bind_property(T, alias memberName)() @nogc {
         enum setterName = "";
     }
 
+    StringName* p_classname = gde_make_string_name(classNameOf!T);
     StringName* p_getter_name = gde_make_string_name(getterName);
     StringName* p_setter_name = gde_make_string_name(setterName);
     
@@ -269,36 +284,42 @@ void gde_bind_property(T, alias memberName)() @nogc {
     }
     
     auto p_prop_info = gde_make_property_info!propType(gdMemberName, propExport.hint, propExport.hintString, propExport.flags);
-    classdb_register_extension_class_property(__godot_class_library, &p_classname, &p_prop_info, p_setter_name, p_getter_name);
+    classdb_register_extension_class_property(__godot_class_library, p_classname, &p_prop_info, p_setter_name, p_getter_name);
     gde_destroy_property_info(p_prop_info);
 
     gde_free_string_name(p_getter_name);
     gde_free_string_name(p_setter_name);
+    gde_free_string_name(p_classname);
 }
 
 void gde_bind_const(T, alias memberName)() @nogc {
     alias member = __traits(getMember, T, memberName);
-    StringName p_classname = StringName(classNameOf!T);
-    StringName p_enumname;
-    StringName p_constname;
+    StringName* p_classname = gde_make_string_name(classNameOf!T);
+    StringName* p_enumname;
+    StringName* p_constname;
     GDExtensionInt p_value;
     
     static if (is(member == enum)) {
         
         // Enums
-        p_enumname = StringName(__traits(identifier, member));
+        p_enumname = gde_make_string_name(__traits(identifier, member));
         static foreach(enumMember; __traits(allMembers, member)) {
-            p_constname = StringName(toScreamingSnakeCase!(enumMember));
+            p_constname = gde_make_string_name(toScreamingSnakeCase!(enumMember));
             p_value = cast(GDExtensionInt)__traits(getMember, member, enumMember);
-            classdb_register_extension_class_integer_constant(__godot_class_library, &p_classname, &p_enumname, &p_constname, p_value, false);
+            classdb_register_extension_class_integer_constant(__godot_class_library, p_classname, p_enumname, p_constname, p_value, false);
+            gde_free_string_name(p_constname);
         }
+        gde_free_string_name(p_enumname);
     } else {
 
         // Manifest constants and consts
-        p_constname = StringName(toScreamingSnakeCase!(__traits(identifier, member)));
+        p_constname = gde_make_string_name(toScreamingSnakeCase!(__traits(identifier, member)));
         p_value = cast(GDExtensionInt)__traits(getMember, T, memberName);
-        classdb_register_extension_class_integer_constant(__godot_class_library, &p_classname, &p_enumname, &p_constname, p_value, false);
+        classdb_register_extension_class_integer_constant(__godot_class_library, p_classname, p_enumname, p_constname, p_value, false);
+        gde_free_string_name(p_constname);
     }
+
+    gde_free_string_name(p_classname);
 }
 
 
@@ -311,12 +332,13 @@ template __gde_class_get_virtual_call_data(T) {
 
     pragma(mangle, gdeMangleOf!(T, __gde_class_get_virtual_call_data))
     extern(C) void* __gde_class_get_virtual_call_data(void* pclassuserdata, GDExtensionConstStringNamePtr pname, uint phash) {
-        StringName p_procname = *cast(StringName*)pname;
+        StringName* p_procname = cast(StringName*)pname;
         static foreach(method; boundMethodsOf!T) {
 
             // We only care about overridden methods.
             static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
-                if (p_procname == methodNameOf!(__traits(getMember, T, method))) {
+
+                if (*p_procname == methodNameOf!(__traits(getMember, T, method))) {
                     return gde_get_func_instance!(T, method)();
                 }
             }
@@ -328,8 +350,8 @@ template __gde_class_get_virtual_call_data(T) {
 
 template __gde_class_call_virtual_with_data(T) {
     pragma(mangle, gdeMangleOf!(T, __gde_class_call_virtual_with_data))
-    extern(C) void __gde_class_call_virtual_with_data(GDExtensionClassInstancePtr pinstance, GDExtensionConstStringNamePtr pname, void* pvirtualcalluserdata, const(GDExtensionConstTypePtr)* pargs, GDExtensionTypePtr rret) {
-    
+    extern(C) void __gde_class_call_virtual_with_data(GDExtensionClassInstancePtr pinstance, GDExtensionConstStringNamePtr pname, void* pvirtualcalluserdata, const(GDExtensionConstTypePtr)* pargs, GDExtensionTypePtr rret) @nogc {
+
         T p_instance = cast(T)pinstance;
         static foreach(method; boundMethodsOf!T) {
 
@@ -337,7 +359,7 @@ template __gde_class_call_virtual_with_data(T) {
             static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
                 if (pvirtualcalluserdata == cast(void*)gde_get_func_instance!(T, method)()) {
                     auto fn = gde_get_func_instance!(T, method)();
-                    gde_gdcall(fn, pargs, rret, p_instance);
+                    gde_gdcall(fn, p_instance, pargs, rret);
                 }
             }
         }

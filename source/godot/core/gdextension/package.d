@@ -1,5 +1,10 @@
 /**
     Bindings and utilities for the GDExtension API.
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
 */
 module godot.core.gdextension;
 import godot.core.registration;
@@ -28,7 +33,7 @@ void loadGodot(GDExtensionInterfaceGetProcAddress getProcAddr) @nogc nothrow {
 
     You do not need to call this yourself, godot calls it for you.
 */
-extern(C) export GDExtensionBool __gde_library_initialize(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) @nogc nothrow {
+extern(C) export GDExtensionBool __nugodot_entry(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) @nogc nothrow {
     __godot_class_library = p_library;
     loadGodot(p_get_proc_address);
 
@@ -79,6 +84,12 @@ extern(C) void __gde_extension_init(void *p_userdata, GDExtensionInitializationL
                     }
                 }
             }
+
+            // Call post-registration handlers.
+            foreach(klass; classes) {
+                if (klass.post_registration)
+                    klass.post_registration();
+            }
             return;
 
         case GDEXTENSION_INITIALIZATION_EDITOR:
@@ -97,6 +108,13 @@ extern(C) void __gde_extension_shutdown(void *p_userdata, GDExtensionInitializat
     switch(p_level) {
         case GDEXTENSION_INITIALIZATION_SCENE:
             GDEClassRegistrationInfo[] classes = gde_get_registrations();
+
+            // Call pre-unregistration handlers.
+            foreach(klass; classes) {
+                if (klass.pre_unregistration)
+                    klass.pre_unregistration();
+            }
+
             size_t unloaded = 0;
             size_t toUnload = size_t.max;
             while(unloaded < classes.length) {

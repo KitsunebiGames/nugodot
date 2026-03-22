@@ -1,3 +1,11 @@
+/**
+    Binding to Godot's Signal Variants
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.signal;
 import godot.core.gdextension.iface;
 import godot.core.gdextension.variant_size;
@@ -27,13 +35,23 @@ public:
     }
 
     /**
+        Constructs a Signal from a variant.
+
+        Params:
+            variant = The variant to unwrap.
+    */
+    this()(auto ref Variant variant) {
+        signal_from_variant(&this, &variant);
+    }
+
+    /**
         Constructs a new signal from an existing signal.
 
         Params:
             signal = The signal to construct this one from.
     */
     this(Signal signal) {
-        gde_bind_and_call_ctor!(typeof(this), 1)(this, signal);
+        gde_bind_and_call_ctor!(typeof(this), 1)(&this, &signal);
     }
 
     /**
@@ -44,7 +62,7 @@ public:
             signal = The name of the signal.
     */
     this(GDEObject object, StringName signal) {
-        gde_bind_and_call_ctor!(typeof(this), 2)(this, object.ptr, signal);
+        gde_bind_and_call_ctor!(typeof(this), 2)(&this, object.ptr, &signal);
     }
 
     /**

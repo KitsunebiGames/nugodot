@@ -1,3 +1,11 @@
+/**
+    Binding to Godot's core variant type
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.variant;
 import godot.core.gdextension;
 import godot.core.object;
@@ -12,19 +20,23 @@ struct Variant {
 private:
 @nogc:
     void[VARIANT_SIZE_VARIANT] data_;
-    @property GDExtensionVariantPtr ptr() => cast(GDExtensionVariantPtr)data_.ptr;
 
 public:
 
     /**
         The type of this variant.
     */
-    @property VariantType type() => cast(VariantType)variant_get_type(ptr);
+    @property VariantType type() => cast(VariantType)variant_get_type(&this);
 
     /**
         The hash of this variant.
     */
     @property long hash() => variant_hash(&this);
+
+    /**
+        Instance ID of object stored in variant.
+    */
+    @property GDObjectInstanceID objectID() => variant_get_object_instance_id(&this);
 
     /**
         The name of the type stored in the variant.
@@ -37,21 +49,14 @@ public:
 
     /// Destructor
     ~this() {
-        variant_destroy(this.ptr);
-    }
-
-    /**
-        Constructs a new variant from a pointer.
-    */
-    this(GDExtensionVariantPtr ptr) {
-        variant_new_copy(this.ptr, ptr);
+        variant_destroy(&this);
     }
 
     /**
         Makes a copy of the variant.
     */
     this(ref return scope Variant other) {
-        variant_new_copy(this.ptr, other.ptr);
+        variant_new_copy(&this, &other);
     }
 
     /**
@@ -61,7 +66,16 @@ public:
             value = The new value to give the variant.
     */
     this(T)(auto ref T value) {
-        static if (is(T == bool)) {
+        static if (is(T : GDEObject)) {
+
+            // NOTE:    GDExtension assumes that the Object ptr is stored in a struct
+            //          as such we just place it on the stack and take a reference to
+            //          the stack location to emulate such an arrangement. 
+            if (value && value.ptr) {
+                variant_from_object(&this, &(value.ptr()));
+            }
+            
+        } else static if (is(T == bool)) {
 
             variant_from_bool(&this, &value);
         } else static if (__traits(isIntegral, T)) {
@@ -118,10 +132,6 @@ public:
         } else static if (is(T == U[], U) && is(PackedArray!U)) {
             
             this(gde_to_packed_array(value));
-        } else static if (is(T : GDEObject)) {
-            if (value)
-                variant_from_object(&this, value.ptr);
-            
         } else {
             static assert(0, T.stringof~" cannot be put into a Variant!");
         }

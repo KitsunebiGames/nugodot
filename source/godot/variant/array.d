@@ -1,13 +1,19 @@
+/**
+    Binding to Godot's Array Variants
+
+    Copyright © 2025, Kitsunebi Games
+    Distributed under the BSL 1.0 license, see LICENSE file.
+    
+    Authors: Luna Nielsen
+*/
 module godot.variant.array;
 import godot.core.gdextension.variant_size;
 import godot.core.gdextension.iface;
 import godot.core.wrap;
 import godot.core.traits;
 import godot.core.object;
-import godot.variant.string;
-import godot.variant.vector;
-import godot.variant.variant;
-import godot.variant.color;
+import godot.variant;
+
 import numem.core.traits;
 import numem.core.meta;
 import numem;
@@ -27,14 +33,11 @@ private:
 
 public:
 
-    // Disable default construction
-    @disable this();
-
     /**
         Makes a new instance of the given array type.
     */
     static typeof(this) makeNew() {
-        typeof(this) p_arr = void;
+        typeof(this) p_arr;
         gde_bind_and_call_ctor!(typeof(this), 0)(&p_arr);
         static if (!is(T == Variant)) {
             static if (is(T : GDEObject)) {
@@ -92,6 +95,16 @@ public:
         } else {
             return gde_unwrap!T(gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "back", 1460142086, Variant)(&this));
         }
+    }
+
+    /**
+        Constructs an array from a variant.
+
+        Params:
+            variant = The variant.
+    */
+    this()(auto ref Variant variant) {
+        array_from_variant(&this, &variant);
     }
 
     /**
@@ -281,7 +294,7 @@ public:
         A D slice over the packed godot array.
 */
 T[] gde_from_packed_array(T)(auto ref PackedArray!T array) @nogc {
-    return array.ptr[0..array.size];
+    return array.ptrw[0..array.size];
 }
 
 /**
@@ -406,12 +419,17 @@ public:
         Constructs a new packed array from a D slice.
 
         Params:
-            data = The slice of data to construct this packed array with.
+            data =  The slice of data to construct this packed array with.
+                    The slice will be freed on completion.
     */
     this(T[] data) {
         gde_bind_and_call_ctor!(VARIANT_TYPE, 0)(&this);
-        this.resize(data.length);
-        nu_memcpy(this.ptrw, data.ptr, T.sizeof*data.length);
+        
+        if (data) {
+            this.resize(data.length);
+            nu_memcpy(this.ptrw, data.ptr, T.sizeof*data.length);
+            nu_free(data.ptr);
+        }
     }
 
     /**
@@ -420,7 +438,7 @@ public:
         Params:
             variant = The variant to get the array from.
     */
-    this(Variant variant) {
+    this()(auto ref Variant variant) {
         from_variant_func(&this, &variant);
     }
 
