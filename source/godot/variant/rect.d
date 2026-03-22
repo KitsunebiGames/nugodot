@@ -52,7 +52,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = VARIANT_TYPE;
+    enum Type = VARIANT_TYPE;
 
     /**
         The area of the rectangle.

@@ -62,7 +62,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_PROJECTION;
+    enum Type = GDEXTENSION_VARIANT_TYPE_PROJECTION;
     
     /**
         Constructs a Quaternion from a variant.

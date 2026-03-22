@@ -37,7 +37,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_QUATERNION;
+    enum Type = GDEXTENSION_VARIANT_TYPE_QUATERNION;
     
     /**
         Constructs a Quaternion from a variant.

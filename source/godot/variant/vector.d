@@ -20,11 +20,13 @@ private:
 @nogc:
 
     static if (is(T == gd_float)) {
-        alias fromVariantFunc = mixin("vector", dims, "_from_variant");
+        alias from_variant = mixin("vector", dims, "_from_variant");
+        alias to_variant = mixin("variant_from_vector", dims);
         enum VARIANT_TYPE = mixin("GDEXTENSION_VARIANT_TYPE_VECTOR", dims);
     } else static if (is(T == int)) {
 
-        alias fromVariantFunc = mixin("vector", dims, "i_from_variant");
+        alias from_variant = mixin("vector", dims, "i_from_variant");
+        alias to_variant = mixin("variant_from_vector", dims, "i");
         enum VARIANT_TYPE = mixin("GDEXTENSION_VARIANT_TYPE_VECTOR", dims, "I");
     } else {
 
@@ -59,7 +61,12 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = VARIANT_TYPE;
+    enum Type = VARIANT_TYPE;
+
+    /**
+        Function used to convert a vector to a variant.
+    */
+    alias toVariantFunc = to_variant;
 
     /**
         Constructs a vector from a variant.
@@ -68,7 +75,7 @@ public:
             variant = The variant to unwrap.
     */
     this()(auto ref Variant variant) {
-        fromVariantFunc(&this, &variant);
+        from_variant(&this, &variant);
     }
 
     /**

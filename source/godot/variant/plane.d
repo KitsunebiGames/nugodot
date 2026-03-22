@@ -31,7 +31,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_PLANE;
+    enum Type = GDEXTENSION_VARIANT_TYPE_PLANE;
     
     /**
         Constructs a Plane from a variant.

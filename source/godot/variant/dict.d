@@ -29,6 +29,11 @@ private:
 public:
 
     /**
+        The type of the variant.
+    */
+    enum Type = GDEXTENSION_VARIANT_TYPE_DICTIONARY;
+
+    /**
         The size of the dictionary.
     */
     @property size_t size() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "size", 3173160232, GDExtensionInt)(&this);

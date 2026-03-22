@@ -28,36 +28,8 @@ public import numem.lifetime;
 */
 Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
     static if (is(T : GDEObject)) {
-        static if (isGodotNativeClass!T) {
-
-            // Base godot objects.
-            StringName* p_classname = gde_make_string_name(classNameOf!T);
-            auto ptr = classdb_construct_object2(p_classname);
-            auto obj_ = gde_alloc_class!T(ptr);
-
-            // Call our constructor.
-            static if (is(typeof(T.__ctor)))
-                obj_.__ctor(args);
-
-            gde_free_string_name(p_classname);
-            return obj_;
-
-        } else static if (is(T PT == super)) {
-    
-            // Extension objects.
-            StringName* p_classname = gde_make_string_name(classNameOf!PT);
-            auto ptr = classdb_construct_object2(p_classname);
-            auto obj_ = gde_alloc_class!T(ptr);
-
-            // Call our constructor.
-            static if (is(typeof(T.__ctor)))
-                obj_.__ctor(args);
-            
-            gde_free_string_name(p_classname);
-            return obj_;
-        } else {
-            static assert(0, "No super class was found for the type?!");
-        }
+        
+        return gde_alloc_class!T();
     } else {
         Ref!T mem = cast(Ref!T)nu_malloc(AllocSize!T, true);
         nogc_construct(mem, args);
@@ -148,14 +120,14 @@ void gd_delete(T)(ref T value) @trusted @nogc {
 T gde_get(T)(GDExtensionObjectPtr ptr) @trusted @nogc
 if (is(T : GDEObject)) {
     
-    // Null instance.
+    // If object already has a binding, return it.
+    if (auto obj = gde_class_get!T(ptr))
+        return obj;
+    
+    // No object to bind.
     if (ptr is null)
         return null;
 
-    // Object already has a binding, return it.
-    if (auto obj = cast(T)object_get_instance_binding(ptr, __godot_class_library, null))
-        return obj;
-    
     // Object needs to be allocated.
-    return gde_alloc_class!T(ptr);
+    return gde_class_bind_instance!T(ptr);
 }

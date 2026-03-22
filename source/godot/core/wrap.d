@@ -209,7 +209,7 @@ void gde_bind_and_call_ctor(GDExtensionVariantType VT, int ctor, Args...)(GDExte
         parentClassName =   Name of the parent class to register.
         info =              Information to register.
 */
-void gde_register_extension_class(string className, string parentClassName, ref GDExtensionClassCreationInfo5 info) @nogc {
+void gde_class_register_extension(string className, string parentClassName, ref GDExtensionClassCreationInfo5 info) @nogc {
     StringName* p_classname = gde_make_string_name(className);
     StringName* p_parent_classname = gde_make_string_name(parentClassName);
     classdb_register_extension_class5(__godot_class_library, p_classname, p_parent_classname, &info);
@@ -245,17 +245,15 @@ RetT gde_ptrcall(RetT = void, Args...)(GDExtensionTypePtr obj, GDExtensionMethod
     // Fill out arguments
     GDExtensionConstTypePtr[Args.length] args_;
     static foreach(int i; 0..Args.length) {
-        {
-            auto __tmp = gde_to_gd(args[i]);
-            args_[i] = &__tmp;
-        }
+        mixin("auto __tmp", i, " = gde_to_gd(args[i]);");
+        args_[i] = &mixin("__tmp", i);
     }
     
     // Call
     static if (!is(RetT == void)) {
-        wrapTypeOf!RetT ret_ = void;
+        RetT ret_;
         object_method_bind_ptrcall(method, obj, args_.ptr, &ret_);
-        return gde_from_gd!RetT(&ret_);
+        return ret_;
     } else {
         object_method_bind_ptrcall(method, obj, args_.ptr, null);
     }
@@ -276,48 +274,17 @@ RetT gde_ptrcall_static(RetT = void, Args...)(GDExtensionMethodBindPtr method, a
     // Fill out arguments
     GDExtensionConstTypePtr[Args.length] args_;
     static foreach(int i; 0..Args.length) {
-        {
-            auto __tmp = gde_to_gd(args[i]);
-            args_[i] = &__tmp;
-        }
+        mixin("auto __tmp", i, " = gde_to_gd(args[i]);");
+        args_[i] = &mixin("__tmp", i);
     }
 
     // Call
     static if (!is(RetT == void)) {
-        wrapTypeOf!RetT ret_;
+        RetT ret_;
         object_method_bind_ptrcall(method, null, args_.ptr, &ret_);
-        return gde_from_gd!RetT(&ret_);
+        return ret_;
     } else {
         object_method_bind_ptrcall(method, null, args_.ptr, null);
-    }
-}
-
-/**
-    Gets an instance of the given function for the given type,
-    while respecting virtual functions.
-
-    Notes:
-        The function returned is stripped of all of its normal attributes,
-        this function is **UNSAFE** unless you know what you're doing.
-
-    Params:
-        instance =  The class instance.
-        method =    The method to get.
-*/
-auto gde_get_func_instance(T, string method)() @system @nogc nothrow {
-    alias methodT = __traits(getMember, T, method);
-    alias rt = returnTypeOf!methodT function(T, parametersOf!methodT) @nogc nothrow;
-
-    static if (__traits(isVirtualMethod, methodT)) {
-        enum vtblOffset = __traits(getVirtualIndex, methodT);
-
-        T p_instance = cast(T)__traits(initSymbol, T).ptr;
-        return cast(rt)p_instance.__vptr[vtblOffset];
-    } else {
-        pragma(mangle, methodT.mangleof)
-        static extern returnTypeOf!(methodT) __func (T, parametersOf!methodT) @nogc nothrow;
-
-        return cast(rt)&__func;
     }
 }
 
@@ -338,15 +305,16 @@ auto gde_get_func_instance(T, alias method)() @system @nogc nothrow {
     alias rt = returnTypeOf!methodT function(T, parametersOf!methodT) @nogc nothrow;
 
     static if (__traits(isVirtualMethod, method)) {
-        enum vtblOffset = __traits(getVirtualIndex, method);
 
+        enum vtblOffset = __traits(getVirtualIndex, method);
         T p_instance = cast(T)__traits(initSymbol, T).ptr;
         return cast(rt)p_instance.__vptr[vtblOffset];
-    } else {
-        pragma(mangle, method.mangleof)
-        static extern returnTypeOf!(method) __func (T, parametersOf!method) @nogc nothrow;
+    } else static if(__traits(isStaticFunction, T)) {
 
-        return cast(rt)&__func;
+        return &method;
+    } else {
+
+        return cast(rt)&method;
     }
 }
 
@@ -363,10 +331,13 @@ if (is(FuncT == return)) {
     static foreach(i; 1..pTypes.length) {
         __params[i] = gde_from_gd!(pTypes[i])(pargs[i-1]);
     }
-
+    
     static if (!is(rType == void)) {
-        *(cast(rType*)rret) = gde_to_gd(fn(__params));
+
+        auto result = fn(__params);
+        *(cast(rType*)rret) = gde_to_gd(result);
     } else {
+        
         fn(__params);
     }
 }
@@ -381,27 +352,24 @@ if (is(FuncT == return)) {
 pragma(inline, true)
 GDExtensionClassMethodPtrCall gde_wrap_method_ptrcall(T, alias method)() @nogc
 if (is(T : GDEObject)) {
-    extern(C) GDExtensionClassMethodPtrCall fn = cast(GDExtensionClassMethodPtrCall)(void* method_userdata, GDExtensionClassInstancePtr p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
+    extern(C) GDExtensionClassMethodPtrCall fn = cast(GDExtensionClassMethodPtrCall)(void* method_userdata, T p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
         alias ReturnType = returnTypeOf!method;
         alias Params = parametersOf!method;
-        
-        T obj_ = cast(T)p_instance;
 
         // Get parameters.
         Params __args = void;
         static foreach(i; 0..__args.length) {
-            __args[i] = *(cast(typeof(__args[i])*)p_args[i]);
+            __args[i] = gde_from_gd!(Params[i])(p_args[i]);
         }
 
         // Call.
+        auto fn = gde_get_func_instance!(T, method);
         static if (!is(ReturnType == void)) {
+            auto result = fn(p_instance, __args);
+            *(cast(wrapTypeOf!(ReturnType)*)r_ret) = gde_to_gd(result);
+        } else {
 
-            auto __ret = gde_to_gd(__traits(getMember, obj_, __traits(identifier, method))(__args));
-            *(cast(typeof(__ret)*)r_ret) = __ret;
-        }
-        else {
-
-            __traits(getMember, obj_, __traits(identifier, method))(__args);
+            fn(p_instance, __args);
         }
     };
 
@@ -417,7 +385,7 @@ if (is(T : GDEObject)) {
 */
 pragma(inline, true)
 GDExtensionClassMethodCall gde_wrap_method_call(T, alias method)() @nogc {
-    extern(C) GDExtensionClassMethodCall fn = cast(GDExtensionClassMethodCall)(void* method_userdata, GDExtensionClassInstancePtr p_instance, const(GDExtensionConstVariantPtr)* p_args, GDExtensionInt p_argument_count, GDExtensionVariantPtr r_return, GDExtensionCallError* r_error) {
+    extern(C) GDExtensionClassMethodCall fn = cast(GDExtensionClassMethodCall)(void* method_userdata, T p_instance, Variant** p_args, GDExtensionInt p_argument_count, Variant* r_return, GDExtensionCallError* r_error) {
         alias ReturnType = returnTypeOf!method;
         alias Params = parametersOf!method;
 
@@ -430,14 +398,14 @@ GDExtensionClassMethodCall gde_wrap_method_call(T, alias method)() @nogc {
         }
 
         if (p_argument_count > Params.length) {
+
             // Too many arguments.
             r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
             r_error.expected = Params.length;
             return;
         }
 
-        T obj_ = cast(T)p_instance;
-        if (!obj_) {
+        if (!p_instance) {
 
             // Invalid instance.
             r_error.error = GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL;
@@ -447,18 +415,17 @@ GDExtensionClassMethodCall gde_wrap_method_call(T, alias method)() @nogc {
         // Unwrap the arguments into ones that the DLang side understands.
         Params __args;
         static foreach(i; 0..Params.length) {
-            static if (is(typeof(() => Params[i].init.move())))
-                __args[i] = gde_unwrap!(Params[i])(*cast(Variant*)p_args[i]).move();
-            else
-                __args[i] = gde_unwrap!(Params[i])(*cast(Variant*)p_args[i]);
+            __args[i] = gde_unwrap!(Params[i])(*p_args[i]);
         }
 
         // Wrap the return value to something that Godot understands, if needed.
         auto fn = gde_get_func_instance!(T, method);
         static if (!is(ReturnType == void)) {
-            *(cast(Variant*)r_return) = gde_wrap!ReturnType(fn(obj_, __args));
+
+            *r_return = gde_wrap(fn(p_instance, __args));
         } else {
-            fn(obj_, __args);
+
+            fn(p_instance, __args);
         }
     };
     
@@ -515,9 +482,9 @@ GDExtensionPropertyInfo gde_make_property_info(T)(string name, uint hint = 0, st
 */
 pragma(inline, true)
 void gde_destroy_property_info(ref GDExtensionPropertyInfo info) @nogc {
-    gde_free_string_name(cast(StringName*)info.name);
-    gde_free_string_name(cast(StringName*)info.class_name);
-    gde_free_string(cast(String*)info.hint_string);
+    gde_free_string_name(info.name);
+    gde_free_string_name(info.class_name);
+    gde_free_string(info.hint_string);
 }
 
 /**
@@ -535,9 +502,7 @@ if (is(T : GDEObject)) {
     __gshared T __singleton_instance;
     if (!__singleton_instance) {
         StringName* p_name = gde_make_string_name(name);
-        
-        void* s_ptr = global_get_singleton(p_name);
-        __singleton_instance = gde_alloc_singleton!T(s_ptr);
+        __singleton_instance = gde_class_bind_singleton!T(global_get_singleton(p_name));
         gde_free_string_name(p_name);
     }
 
@@ -551,7 +516,7 @@ if (is(T : GDEObject)) {
         value = the value to convert to a godot equivalent.
 */
 pragma(inline, true)
-auto gde_to_gd(T)(auto ref T value) @nogc {
+ref auto gde_to_gd(T)(ref scope return T value) @nogc {
     static if (is(T : GDEObject))
         return value.ptr;
     else static if (is(T == bool))
@@ -603,11 +568,10 @@ T gde_from_gd(T)(GDExtensionConstTypePtr value) @nogc {
         The wrapped value.
 */
 Variant gde_wrap(T)(auto ref T value) @nogc {
-    static if (is(T == Variant)) {
+    static if (is(T == Variant))
         return value;
-    } else {
+    else
         return Variant(value);
-    }
 }
 
 /**
@@ -620,7 +584,7 @@ Variant gde_wrap(T)(auto ref T value) @nogc {
         The unwrapped value.
 */
 T gde_unwrap(T)(auto ref Variant from) @nogc
-if (variantTypeOf!T != GDEXTENSION_VARIANT_TYPE_NIL) {
+if (isVariant!T) {
     import numem.core.traits : BaseElemOf;
     import godot.core.lifetime : gde_get;
         
@@ -628,6 +592,7 @@ if (variantTypeOf!T != GDEXTENSION_VARIANT_TYPE_NIL) {
         
         bool result;
         bool_from_variant(&result, &from);
+        return result;
     } else static if (__traits(isIntegral, T)) {
 
         static if (__traits(isUnsigned, T))
@@ -649,8 +614,12 @@ if (variantTypeOf!T != GDEXTENSION_VARIANT_TYPE_NIL) {
         
         GDExtensionObjectPtr result;
         object_from_variant(&result, &from);
-        return gde_get!T(result);
+        return gde_class_get!T(result);
+    } else static if (is(T == Variant)) {
+
+        return from;  
     } else {
+
         return T(from);
     }
 }

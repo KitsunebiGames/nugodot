@@ -41,7 +41,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_PLANE;
+    enum Type = GDEXTENSION_VARIANT_TYPE_PLANE;
 
     /**
         Whether the color is HDR (over 0..1 range)

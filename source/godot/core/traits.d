@@ -79,83 +79,6 @@ template godotNameOf(alias symbol, bool recursive) {
 }
 
 /**
-    Gets whether the given type $(D T) is a variant.
-
-    Params:
-        T =    The type to query.
-*/
-template isVariant(T) {
-    import godot.variant;
-
-    alias Y = Unqual!T;
-
-    static if (is(Y == bool))
-        enum isVariant = true;
-    else static if (__traits(isIntegral, Y))
-        enum isVariant = true;
-    else static if (__traits(isFloating, Y))
-        enum isVariant = true;
-    else static if (is(Y == String))
-        enum isVariant = true;
-    else static if (is(Y == Vector2))
-        enum isVariant = true;
-    else static if (is(Y == Vector2i))
-        enum isVariant = true;
-    else static if (is(Y == Rect2))
-        enum isVariant = true;
-    else static if (is(Y == Rect2i))
-        enum isVariant = true;
-    else static if (is(Y == Vector3))
-        enum isVariant = true;
-    else static if (is(Y == Vector3i))
-        enum isVariant = true;
-    else static if (is(Y == Transform2D))
-        enum isVariant = true;
-    else static if (is(Y == Vector4))
-        enum isVariant = true;
-    else static if (is(Y == Vector4i))
-        enum isVariant = true;
-    else static if (is(Y == Plane))
-        enum isVariant = true;
-    else static if (is(Y == Quaternion))
-        enum isVariant = true;
-    else static if (is(Y == AABB))
-        enum isVariant = true;
-    else static if (is(Y == Basis))
-        enum isVariant = true;
-    else static if (is(Y == Transform3D))
-        enum isVariant = true;
-    else static if (is(Y == Projection))
-        enum isVariant = true;
-    else static if (is(Y == Color))
-        enum isVariant = true;
-    else static if (is(Y == StringName))
-        enum isVariant = true;
-    else static if (is(Y == NodePath))
-        enum isVariant = true;
-    else static if (is(Y == RID))
-        enum isVariant = true;
-    else static if (is(Y : GDEObject))
-        enum isVariant = true;
-    else static if (is(Y == Callable))
-        enum isVariant = true;
-    else static if (is(Y == Signal!U, U...))
-        enum isVariant = true;
-    else static if (is(Y == TypedDictionary!U, U...))
-        enum isVariant = true;
-    else static if (is(Y == TypedArray!U, U))
-        enum isVariant = true;
-    else static if (is(Y == PackedArray!U, U))
-        enum isVariant = true;
-    else static if (is(Y == U[], U) && is(PackedArray!U))
-        enum isVariant = true;
-    else static if (is(Y == Variant))
-        enum isVariant = true;
-    else
-        enum isVariant = false;
-}
-
-/**
     Gets the equivalent wrapped type of a native D type.
 
     Params:
@@ -170,12 +93,38 @@ template wrapTypeOf(T) {
         alias wrapTypeOf = String;
     else static if (is(T == U[], U) && is(PackedArray!U))
         alias wrapTypeOf = PackedArray!U;
+    else static if (is(T == bool))
+        alias wrapTypeOf = bool;
     else static if (__traits(isIntegral, T))
         alias wrapTypeOf = GDExtensionInt;
     else static if (__traits(isFloating, T))
         alias wrapTypeOf = double;
     else
         alias wrapTypeOf = T;
+}
+
+/**
+    Gets whether the given type $(D T) is a variant.
+
+    Params:
+        T =    The type to query.
+*/
+template isVariant(T) {
+    import godot.variant;
+
+    alias Y = Unqual!T;
+    static if (is(typeof(Y.Type) == GDExtensionVariantType))
+        enum isVariant = true;
+    else static if (is(Y == bool))
+        enum isVariant = true;
+    else static if (__traits(isIntegral, Y))
+        enum isVariant = true;
+    else static if (__traits(isFloating, Y))
+        enum isVariant = true;
+    else static if (is(Y == Variant))
+        enum isVariant = true;
+    else
+        enum isVariant = false;
 }
 
 /**
@@ -186,69 +135,15 @@ template wrapTypeOf(T) {
 */
 template variantTypeOf(T) {
     import godot.variant;
-
+    
     static if (is(T == bool))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_BOOL;
     else static if (__traits(isIntegral, T))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_INT;
     else static if (__traits(isFloating, T))
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_FLOAT;
-    else static if (is(T == String) || is(T == string))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_STRING;
-    else static if (is(T == Vector2))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VECTOR2;
-    else static if (is(T == Vector2i))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VECTOR2I;
-    else static if (is(T == Rect2))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_RECT2;
-    else static if (is(T == Rect2i))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_RECT2I;
-    else static if (is(T == Vector3))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VECTOR3;
-    else static if (is(T == Vector3i))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VECTOR3I;
-    else static if (is(T == Transform2D))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_TRANSFORM2D;
-    else static if (is(T == Vector4))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VECTOR4;
-    else static if (is(T == Vector4i))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VECTOR4I;
-    else static if (is(T == Plane))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PLANE;
-    else static if (is(T == Quaternion))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_QUATERNION;
-    else static if (is(T == AABB))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_AABB;
-    else static if (is(T == Basis))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_BASIS;
-    else static if (is(T == Transform3D))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_TRANSFORM3D;
-    else static if (is(T == Projection))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_PROJECTION;
-    else static if (is(T == Color))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_COLOR;
-    else static if (is(T == StringName))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_STRING_NAME;
-    else static if (is(T == NodePath))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_NODE_PATH;
-    else static if (is(T == RID))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_RID;
-    else static if (is(T : GDEObject))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_OBJECT;
-    else static if (is(T == Callable))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_CALLABLE;
-    else static if (is(T == Signal!U, U...))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_SIGNAL;
-    else static if (is(T == TypedDictionary!U, U...))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_DICTIONARY;
-    else static if (is(T == TypedArray!U, U))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_ARRAY;
-    else static if (is(T == PackedArray!U, U...))
-        enum variantTypeOf = T.VariantType;
-    else static if (is(T == U[], U) && is(PackedArray!U))
-        enum variantTypeOf = PackedArray!(U).VariantType;
-    else static if (is(T == Variant))
-        enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_VARIANT_MAX;
+    else static if (is(typeof(T.Type) == GDExtensionVariantType))
+        enum variantTypeOf = T.Type;
     else
         enum variantTypeOf = GDEXTENSION_VARIANT_TYPE_NIL;
 }
@@ -381,8 +276,8 @@ if (is(T : GDEObject)) {
 */
 template getPropertyType(T, alias memberName) 
 if (is(T : GDEObject)) {
-    static if (is(typeof(mixin(T, ".", memberName)))) {
-        alias getPropertyType = typeof(mixin(T, ".", memberName));
+    static if (is(typeof(__traits(getMember, T, memberName)))) {
+        alias getPropertyType = typeof(__traits(getMember, T, memberName));
     } else static if (parametersOf!(getSetterFunc!(T, memberName)).length == 1) {
         alias getPropertyType = parametersOf!(getSetterFunc!(T, memberName))[0];
     } else {
@@ -437,7 +332,10 @@ template getPropertyExport(alias member) {
         member = Alias to a class member.
 */
 template hasPropertyExport(alias member) {
-    enum hasPropertyExport = hasUDA!(member, gd_export) || hasUDA!(member, gd_export_mutliline) || hasUDA!(member, gd_export_custom);
+    enum hasPropertyExport = 
+        hasUDA!(member, gd_export) || 
+        hasUDA!(member, gd_export_mutliline) || 
+        hasUDA!(member, gd_export_custom);
 }
 
 /**

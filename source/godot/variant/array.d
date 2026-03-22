@@ -34,6 +34,11 @@ private:
 public:
 
     /**
+        The type of the variant.
+    */
+    enum Type = GDEXTENSION_VARIANT_TYPE_ARRAY;
+
+    /**
         Makes a new instance of the given array type.
     */
     static typeof(this) makeNew() {
@@ -390,9 +395,9 @@ public:
     alias ArrayT = Unqual!T;
 
     /**
-        The godot variant type of the packed array
+        The type of the variant.
     */
-    enum VariantType = VARIANT_TYPE;
+    enum Type = VARIANT_TYPE;
 
     /**
         Alias to function which can be used to conver the packed array
@@ -408,12 +413,12 @@ public:
     /**
         Pointer to the data stored in the packed array.
     */
-    @property T* ptrw() => cast(T*)ptr_idx_func(&this, 0);
+    @property T* ptrw() => cast(T*)ptrw_idx_func(&this, 0);
 
     /**
         Writable pointer to the data stored in the packed array.
     */
-    @property const(T)* ptr() => cast(const(T)*)ptrw_idx_func(&this, 0);
+    @property const(T)* ptr() => cast(const(T)*)ptr_idx_func(&this, 0);
 
     /**
         Constructs a new packed array from a D slice.
@@ -427,7 +432,7 @@ public:
         
         if (data) {
             this.resize(data.length);
-            nu_memcpy(this.ptrw, data.ptr, T.sizeof*data.length);
+            nu_memcpy(this.ptrw, data.ptr, data.length*T.sizeof);
             nu_free(data.ptr);
         }
     }
@@ -448,7 +453,7 @@ public:
         Params:
             other = The other array to construct this array from.
     */
-    this(typeof(this) other) {
+    this(ref return scope typeof(this) other) {
         gde_bind_and_call_ctor!(VARIANT_TYPE, 1)(&this, &other);
     }
 

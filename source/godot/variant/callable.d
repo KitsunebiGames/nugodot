@@ -26,7 +26,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_CALLABLE;
+    enum Type = GDEXTENSION_VARIANT_TYPE_CALLABLE;
     
     /**
         Creates a new callable that calls a method on a given variant.

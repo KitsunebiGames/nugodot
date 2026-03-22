@@ -45,7 +45,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_BASIS;
+    enum Type = GDEXTENSION_VARIANT_TYPE_BASIS;
 
     /**
         Identity basis matrix.

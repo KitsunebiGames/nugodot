@@ -20,7 +20,7 @@ struct RID {
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_RID;
+    enum Type = GDEXTENSION_VARIANT_TYPE_RID;
 
     /**
         Constructs a new RID.

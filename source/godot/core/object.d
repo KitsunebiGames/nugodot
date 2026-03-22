@@ -28,7 +28,7 @@ abstract
 class GDEObject : NuObject {
 private:
 @nogc:
-    GDExtensionObjectPtr nativePtr_;
+    GDExtensionObjectPtr ptr_;
 
 protected:
 
@@ -44,14 +44,19 @@ protected:
 public:
 
     /**
+        The type of the variant.
+    */
+    enum Type = GDEXTENSION_VARIANT_TYPE_OBJECT;
+
+    /**
         Gets the underlying godot object pointer.
     */
-    final @property ref GDExtensionObjectPtr ptr() @system nothrow pure => nativePtr_;
+    final @property ref GDExtensionObjectPtr ptr() @system nothrow pure => ptr_;
 
     /**
         Instance ID of the object.
     */
-    final @property GDObjectInstanceID id() @system nothrow => object_get_instance_id(nativePtr_);
+    final @property GDObjectInstanceID id() @system nothrow => object_get_instance_id(ptr_);
 
     /**
         Sets the given property to the given value.
@@ -149,52 +154,48 @@ RetT call(RetT = void, ClassT, Args...)(ClassT klass, string name, long hash, au
 
 /**
     Allocates a class for the given type and object pointer.
-
-    Params:
-        ptr = The object pointer to associate with the class.
     
     Returns:
         A newly allocated wrapper class.
 */
-T gde_alloc_class(T)(GDExtensionObjectPtr ptr) @system @nogc
+T gde_alloc_class(T)() @system @nogc
 if (is(T : GDEObject)) {
     import numem.core.hooks : nu_malloc, nu_memcpy;
     import godot.variant : Signal;
 
-    import core.stdc.stdio : printf;
+    static if (is(T PT == super)) {
+        static if (!__traits(isAbstractClass, T)) {
 
-    static if (!__traits(isAbstractClass, T)) {
+            // Construct a godot object
+            StringName* p_classname = gde_make_string_name(classNameOf!PT);
+            void* p_object = classdb_construct_object2(p_classname);
+            gde_free_string_name(p_classname);
 
-        // NOTE:    Allocate and base-initialize the class.
-        //          This will NOT call any constructors.
-        const void[] __initSym = __traits(initSymbol, T);
-        T obj = cast(T)nu_malloc(AllocSize!T);
-        nu_memcpy(cast(void*)obj, __initSym.ptr, __initSym.length);
-        (cast(GDEObject)obj).nativePtr_ = ptr;
-        
-        // Apply our wrapper to the object.
-        StringName* p_classname = gde_make_string_name(classNameOf!T);
-        object_set_instance(ptr, p_classname, cast(void*)obj);
-        object_set_instance_binding(ptr, __godot_class_library, cast(void*)obj, &__nu_gde_instance_callbacks!T);
+            // NOTE:    Allocate and base-initialize the class.
+            //          This will NOT call any constructors.
+            T p_instance = gde_class_alloc_empty!T();
+            gde_class_assign(p_object, p_instance);
+            gde_class_bind_signals(p_instance);
+            return p_instance;
+        } else {
 
-        // Wrap signals.
-        StringName* p_signalname;
-        static foreach(signal; boundSignalsOf!T) {
-            p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
-            __traits(getMember, obj, signal) = typeof(__traits(getMember, T, signal))(obj, p_signalname);
-            gde_free_string_name(p_signalname);
+            assert(0, "Tried to instantiate an abstract class!");
+            return null;
         }
-
-        return obj;
-    } else {
-
-        assert(0, "Tried to instantiate an abstract class!");
-        return null;
     }
 }
 
 /**
-    Allocates a class for the given type and object pointer.
+    Allocates an uninitialized instance of the given class.
+*/
+T gde_class_alloc_empty(T)() @system @nogc {
+    T obj = cast(T)nu_malloc(AllocSize!T);
+    nu_memcpy(cast(void*)obj, __traits(initSymbol, T).ptr, __traits(initSymbol, T).length);
+    return obj;
+}
+
+/**
+    Binds a class for a non-instantiable singleton.
 
     Params:
         ptr = The object pointer to associate with the class.
@@ -202,42 +203,33 @@ if (is(T : GDEObject)) {
     Returns:
         A newly allocated wrapper class.
 */
-T gde_alloc_singleton(T)(GDExtensionObjectPtr ptr) @system @nogc
+T gde_class_bind_singleton(T)(GDExtensionObjectPtr ptr) @system @nogc
 if (is(T : GDEObject)) {
-    import numem.core.hooks : nu_malloc, nu_memcpy;
     import godot.variant : Signal;
+    
+    T p_instance = gde_class_alloc_empty!T();;
+    gde_class_assign!(T, true)(ptr, p_instance);
+    gde_class_bind_signals(p_instance);
+    return p_instance;
+}
 
-    import core.stdc.stdio : printf;
+/**
+    Binds a D class instance to a Godot object. 
 
-    static if (!__traits(isAbstractClass, T)) {
+    Params:
+        p_object = The object to attach a binding to.
+    
+    Returns:
+        A newly allocated wrapper class.
+*/
+T gde_class_bind_instance(T)(GDExtensionObjectPtr p_object) @system @nogc {
 
-        // NOTE:    Allocate and base-initialize the class.
-        //          This will NOT call any constructors.
-        const void[] __initSym = __traits(initSymbol, T);
-        T obj = cast(T)nu_malloc(__initSym.length);
-        void* objptr = reinterpret_cast!(void*)(obj);
-        
-        nu_memcpy(objptr, cast(void*)__initSym.ptr, __initSym.length);
-        (cast(GDEObject)objptr).nativePtr_ = ptr;
-        
-        // Apply our wrapper to the object.
-        static if (is(typeof(() => T.init.__ctor())))
-            obj.__ctor();
-
-        // Wrap signals.
-        StringName* p_signalname;
-        static foreach(signal; boundSignalsOf!T) {
-            p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
-            __traits(getMember, obj, signal) = typeof(__traits(getMember, T, signal))(obj, p_signalname);
-            gde_free_string_name(p_signalname);
-        }
-
-        return obj;
-    } else {
-
-        assert(0, "Tried to instantiate an abstract class!");
-        return null;
-    }
+    // NOTE:    Allocate and base-initialize the class.
+    //          This will NOT call any constructors.
+    T p_instance = gde_class_alloc_empty!T();
+    gde_class_assign(p_object, p_instance);
+    gde_class_bind_signals(p_instance);
+    return p_instance;
 }
 
 /**
@@ -302,6 +294,72 @@ if (is(TFrom : GDEObject) && is(TTo : GDEObject)) {
 }
 
 /**
+    Gets a bound D class for a godot class.
+
+    Params:
+        p_object = The object to fetch.
+*/
+T gde_class_get(T)(GDExtensionObjectPtr p_object) @system @nogc {
+
+    // 1. No object to have bindings.
+    if (p_object is null)
+        return null;
+
+    // 2. Try to get binding without callbacks.
+    if (auto p_binding = object_get_instance_binding(p_object, __godot_class_library, null))
+        return cast(T)p_binding;
+
+    // 3. Try with native godot callbacks
+    static if (isGodotNativeClass!T) {
+        if (auto p_binding = object_get_instance_binding(p_object, __godot_class_library, &__nu_gde_instance_callbacks!T))
+            return cast(T)p_binding;
+    }
+    
+    // 3. No bindings.
+    return null;
+}
+
+/**
+    Assigns a D class to a Godot class instance.
+
+    Params:
+        p_object =      The object instance
+        p_instance =    The instance to assign to the class.
+*/
+void gde_class_assign(T, bool singleton = false)(GDExtensionObjectPtr p_object, T p_instance) @system @nogc {
+
+    // Refer to our D object in the Godot instance.
+    static if (!singleton) {
+        StringName* p_classname = gde_make_string_name(classNameOf!T);
+        object_set_instance(p_object, p_classname, cast(void*)p_instance);
+        object_set_instance_binding(p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
+        gde_free_string_name(p_classname);
+    }
+
+    // Refer back to our object in our bound instance.
+    (cast(GDEObject)p_instance).ptr_ = p_object;
+    
+    // Call type base constructor while we're at it.
+    static if (is(typeof(() => T.init.__ctor())))
+        p_instance.__ctor();
+}
+
+/**
+    Binds signals for the given class instance.
+
+    Params:
+        p_instance = the instance to bind.
+*/
+void gde_class_bind_signals(T)(T p_instance) @nogc {
+    StringName* p_signalname;
+    static foreach(signal; boundSignalsOf!T) {
+        p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
+        __traits(getMember, p_instance, signal) = typeof(__traits(getMember, T, signal))(p_instance, p_signalname);
+        gde_free_string_name(p_signalname);
+    }
+}
+
+/**
     Frees a class instance.
 
     Params:
@@ -330,7 +388,7 @@ template __nu_gde_instance_callbacks(T) {
     static if (isGodotNativeClass!T) {
         pragma(mangle, "__nu_gde_create_callback_"~__traits(identifier, T))
         extern(C) void* __nu_gde_create_callback(void *p_token, void *p_instance) @nogc {
-            return cast(void*)gde_alloc_class!T(p_instance);
+            return gde_class_bind_instance!T(p_instance).ptr;
         }
 
         pragma(mangle, "__nu_gde_free_callback_"~__traits(identifier, T))

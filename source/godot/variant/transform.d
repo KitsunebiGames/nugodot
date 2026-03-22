@@ -53,7 +53,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_TRANSFORM2D;
+    enum Type = GDEXTENSION_VARIANT_TYPE_TRANSFORM2D;
 
     /**
         Constructs a Transform2D from a variant.
@@ -93,7 +93,7 @@ public:
     /**
         The type of the variant.
     */
-    enum VariantType = GDEXTENSION_VARIANT_TYPE_TRANSFORM3D;
+    enum Type = GDEXTENSION_VARIANT_TYPE_TRANSFORM3D;
 
     /**
         Constructs a Transform3D from a variant.

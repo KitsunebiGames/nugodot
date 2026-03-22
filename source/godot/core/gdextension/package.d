@@ -39,7 +39,7 @@ extern(C) export GDExtensionBool __nugodot_entry(GDExtensionInterfaceGetProcAddr
 
     r_initialization.initialize = &__gde_extension_init;
     r_initialization.deinitialize = &__gde_extension_shutdown;
-    r_initialization.minimum_initialization_level = GDEXTENSION_INITIALIZATION_SCENE;
+    r_initialization.minimum_initialization_level = GDEXTENSION_INITIALIZATION_CORE;
     
     return true;
 }

@@ -34,8 +34,7 @@ if (is(T : GDEObject)) {
     } else {
         String* __gde_icon_path_ptr = null;
     }
-
-
+    
     alias ctors = gdeClassCtors!T;
 
     enum hasGetOverride = __traits(isOverrideFunction, T.get);
@@ -54,7 +53,6 @@ if (is(T : GDEObject)) {
             to_string_func: cast(typeof(GDExtensionClassCreationInfo5.to_string_func))&__gde_class_to_string_func,
             create_instance_func: cast(typeof(GDExtensionClassCreationInfo5.create_instance_func))&ctors.__gde_class_create,
             free_instance_func: cast(typeof(GDExtensionClassCreationInfo5.free_instance_func))&ctors.__gde_class_free,
-            recreate_instance_func: cast(typeof(GDExtensionClassCreationInfo5.recreate_instance_func))&ctors.__gde_class_recreate,
             get_virtual_call_data_func: cast(typeof(GDExtensionClassCreationInfo5.get_virtual_call_data_func))&__gde_class_get_virtual_call_data!(T),
             call_virtual_with_data_func: cast(typeof(GDExtensionClassCreationInfo5.call_virtual_with_data_func))&__gde_class_call_virtual_with_data!(T),
 
@@ -72,7 +70,7 @@ if (is(T : GDEObject)) {
         );
 
         // Register class
-        gde_register_extension_class(classNameOf!T, classNameOf!PT, classInfo);
+        gde_class_register_extension(classNameOf!T, classNameOf!PT, classInfo);
 
         // Bind members
         static foreach(member; boundMembersOf!T) {
@@ -104,17 +102,16 @@ if (is(T : GDEObject)) {
         // Instance constructor forwarder.
         pragma(mangle, gdeMangleOf!(T, __gde_class_create))
         extern(C) __gshared GDExtensionObjectPtr __gde_class_create(void* p_userdata, GDExtensionBool p_postinit) @nogc {
-            StringName* p_classname = gde_make_string_name(classNameOf!PT);
             
-            void* pObject = classdb_construct_object2(p_classname);
-            cast(void)gde_alloc_class!T(pObject);
+            T p_object = gde_alloc_class!T();
+            
+            // NOTE:    Godot requires the POST_INITIALIZE notification to be called.
             if (p_postinit) {
                 auto p_bind = gde_get_method_bind("Object", "notification", GDEXTENSION_NOTIFICATION_FUNC_HASH);
-                gde_ptrcall(pObject, p_bind, 0, false);
+                gde_ptrcall(p_object.ptr, p_bind, 0, false);
             }
 
-            gde_free_string_name(p_classname);
-            return pObject;
+            return p_object.ptr;
         }
 
         // Instance free forwarder.
@@ -123,12 +120,6 @@ if (is(T : GDEObject)) {
             if (T object = cast(T)p_instance) {
                 gde_class_instance_free(object);
             }
-        }
-
-        // Instance recreate forwarder.
-        pragma(mangle, gdeMangleOf!(T, __gde_class_recreate))
-        extern(C) __gshared GDExtensionClassInstancePtr __gde_class_recreate(void* p_userdata, GDExtensionObjectPtr p_object) @nogc {
-            return cast(GDExtensionClassInstancePtr)gde_alloc_class!T(p_object);
         }
     }
 }
@@ -186,11 +177,9 @@ void gde_bind_method(T, alias method)(string name = null) @nogc
 if (is(T : GDEObject)) {
     enum paramCount = parametersOf!(method).length;
     enum methodName = methodNameOf!method;
-    string method_name = name ? name : methodName;
-    string class_name = classNameOf!T;
 
-    StringName* p_classname = gde_make_string_name(class_name);
-    StringName* p_methodname = gde_make_string_name(method_name);
+    StringName* p_classname = gde_make_string_name(classNameOf!T);
+    StringName* p_methodname = gde_make_string_name(name ? name : methodName);
     GDExtensionClassMethodArgumentMetadata[paramCount] p_param_metas;
     GDExtensionPropertyInfo[paramCount] p_params;
     GDExtensionClassMethodArgumentMetadata p_return_meta;
@@ -203,7 +192,7 @@ if (is(T : GDEObject)) {
     static foreach(int i, param; parametersOf!method) {
         p_params[i] = gde_make_property_info!(param)(toSnakeCase!(paramNames[i]));
     }
-    p_return = gde_make_property_info!(ReturnType!method)("");
+    p_return = gde_make_property_info!(returnTypeOf!method)("");
 
     static if (__traits(isFinalFunction, method) || __traits(isStaticFunction, method)) {
 
@@ -213,7 +202,7 @@ if (is(T : GDEObject)) {
             call_func: gde_wrap_method_call!(T, method)(),
             ptrcall_func: gde_wrap_method_ptrcall!(T, method)(),
             method_flags: cast(uint)p_methodflags,
-            has_return_value: !is(ReturnType!method == void),
+            has_return_value: !is(returnTypeOf!method == void),
             return_value_info: &p_return,
             return_value_metadata: p_return_meta,
             argument_count: cast(int)paramCount,
@@ -246,7 +235,6 @@ if (is(T : GDEObject)) {
 }
 
 void gde_bind_property(T, alias memberName)() @nogc {
-
     enum gdMemberName = toSnakeCase!(memberName);
 
     alias propType = getPropertyType!(T, memberName);
@@ -282,7 +270,7 @@ void gde_bind_property(T, alias memberName)() @nogc {
     } else {
         enum propExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR);
     }
-    
+
     auto p_prop_info = gde_make_property_info!propType(gdMemberName, propExport.hint, propExport.hintString, propExport.flags);
     classdb_register_extension_class_property(__godot_class_library, p_classname, &p_prop_info, p_setter_name, p_getter_name);
     gde_destroy_property_info(p_prop_info);
@@ -339,7 +327,7 @@ template __gde_class_get_virtual_call_data(T) {
             static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
 
                 if (*p_procname == methodNameOf!(__traits(getMember, T, method))) {
-                    return gde_get_func_instance!(T, method)();
+                    return gde_get_func_instance!(T, __traits(getMember, T, method))();
                 }
             }
         }
@@ -354,12 +342,15 @@ template __gde_class_call_virtual_with_data(T) {
 
         T p_instance = cast(T)pinstance;
         static foreach(method; boundMethodsOf!T) {
+            {
+                alias mthd = __traits(getMember, T, method);
 
-            // We only care about overridden methods.
-            static if (__traits(isOverrideFunction, __traits(getMember, T, method))) {
-                if (pvirtualcalluserdata == cast(void*)gde_get_func_instance!(T, method)()) {
-                    auto fn = gde_get_func_instance!(T, method)();
-                    gde_gdcall(fn, p_instance, pargs, rret);
+                // We only care about overridden methods.
+                static if (__traits(isOverrideFunction, mthd)) {
+                    if (pvirtualcalluserdata == cast(void*)gde_get_func_instance!(T, mthd)()) {
+                        auto fn = gde_get_func_instance!(T, mthd)();
+                        gde_gdcall(fn, p_instance, pargs, rret);
+                    }
                 }
             }
         }
@@ -389,7 +380,7 @@ extern(C) GDExtensionBool __gde_class_property_get_revert_func(void* p_instance,
 
 extern(C) void __gde_class_notification_func(void* p_instance, int p_what, GDExtensionBool p_reversed) @nogc {
     auto p_obj = cast(GDEObject)p_instance;
-    gde_get_func_instance!(GDEObject, "onNotification")()(p_obj, p_what, cast(bool)p_reversed);
+    gde_get_func_instance!(GDEObject, __traits(getMember, GDEObject, "onNotification"))()(p_obj, p_what, cast(bool)p_reversed);
 }
 
 extern(C) void __gde_class_to_string_func(void* p_instance, GDExtensionBool* r_is_valid, String* r_out) @nogc {

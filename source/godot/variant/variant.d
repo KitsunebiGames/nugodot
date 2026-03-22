@@ -53,10 +53,13 @@ public:
     }
 
     /**
-        Makes a copy of the variant.
+        Constructs a variant from a variant.
+
+        Params:
+            variant = The variant to copy.
     */
-    this(ref return scope Variant other) {
-        variant_new_copy(&this, &other);
+    this(ref return scope Variant variant) {
+        variant_new_copy(&this, &variant);
     }
 
     /**
@@ -71,15 +74,17 @@ public:
             // NOTE:    GDExtension assumes that the Object ptr is stored in a struct
             //          as such we just place it on the stack and take a reference to
             //          the stack location to emulate such an arrangement. 
-            if (value && value.ptr) {
+            if (value) {
                 variant_from_object(&this, &(value.ptr()));
             }
             
+        } else static if (is(T == Variant)) {
+            
+            variant_new_copy(&this, &value);
         } else static if (is(T == bool)) {
 
             variant_from_bool(&this, &value);
         } else static if (__traits(isIntegral, T)) {
-
             static if (__traits(isUnsigned, T))
                 ulong _tmp = cast(ulong)value;
             else
@@ -90,33 +95,15 @@ public:
             
             double _tmp = cast(double)value;
             variant_from_float(&this, &_tmp);
-        } else static if(is(T == Vector2)) {
-
-            variant_from_vector2(&this, &value);
-        } else static if(is(T == Vector2i)) {
-
-            variant_from_vector2i(&this, &value);
-        } else static if(is(T == Vector3)) {
-
-            variant_from_vector3(&this, &value);
-        } else static if(is(T == Vector3i)) {
-
-            variant_from_vector3i(&this, &value);
-        } else static if(is(T == Vector4)) {
-
-            variant_from_vector4(&this, &value);
-        } else static if(is(T == Vector4i)) {
-
-            variant_from_vector4i(&this, &value);
-        } else static if (is(T == String)) {
+        } else static if (is(T == VectorImpl!U, U...)) {
             
-            variant_from_string(&this, &value);
-        } else static if (is(T == string)) {
-
-            variant_from_string(&this, gde_make_string(value));
+            T.toVariantFunc(&this, &value);
         } else static if (is(T == StringName)) {
             
             variant_from_string_name(&this, &value);
+        } else static if (is(T == String)) {
+            
+            variant_from_string(&this, &value);
         } else static if (is(T == RID)) {
             
             variant_from_rid(&this, &value);
@@ -132,6 +119,9 @@ public:
         } else static if (is(T == U[], U) && is(PackedArray!U)) {
             
             this(gde_to_packed_array(value));
+        } else static if (is(T == string)) {
+
+            variant_from_string(&this, gde_make_string(value));
         } else {
             static assert(0, T.stringof~" cannot be put into a Variant!");
         }
