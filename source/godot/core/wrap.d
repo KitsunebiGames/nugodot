@@ -16,29 +16,42 @@ import numem.core.hooks;
 
 // UDAs
 public import godot.core.attribs;
+public import godot.core.arg;
+public import godot.core.call;
 
 /**
-    Gets a GDExtension MethodBindPtr for a given name and hash.
+    Binds the given constructor for the given variant type.
 
-    Params:
-        name =      Name of the binding to get.
-        hash =      Hash of the binding to get.
-    
     Returns:
-        A method bind for the given name and hash on success,
-        $(D null) otherwise.
+        The bound constructor, cached automatically.
 */
-GDExtensionMethodBindPtr gde_get_method_bind(ClassT)(string name, long hash) @nogc nothrow {
-    auto p_classname = gde_make_string_name(classNameOf!ClassT);
-    auto p_methodname = gde_make_string_name(name);
-    auto p_method = classdb_get_method_bind(p_classname, p_methodname, hash);
-    gde_free_string_name(p_classname);
-    gde_free_string_name(p_methodname);
-    return p_method;
+GDExtensionPtrConstructor gde_get_ctor(GDExtensionVariantType type, int ctor)() @nogc nothrow {
+    __gshared GDExtensionPtrConstructor p_bind;
+    if (!p_bind)
+        p_bind = cast(GDExtensionPtrConstructor)variant_get_ptr_constructor(type, ctor);
+    
+    return p_bind;
 }
 
 /**
-    Gets a GDExtension MethodBindPtr for a given classname, name and hash.
+    Binds the given method for the given variant type.
+
+    Returns:
+        The bound method, cached automatically.
+*/
+GDExtensionPtrBuiltInMethod gde_get_builtin_method(GDExtensionVariantType type, string name, uint hash)() @nogc nothrow {
+    __gshared GDExtensionPtrBuiltInMethod p_bind;
+    if (!p_bind) {
+        auto p_methodname = gde_make_string_name(name);
+        p_bind = variant_get_ptr_builtin_method(type, p_methodname, hash);
+        gde_free_string_name(p_methodname);
+    }
+    
+    return p_bind;
+}
+
+/**
+    Binds the given method for the given classname, name and hash.
 
     Params:
         className = Name of the class to get the method bind for.
@@ -49,156 +62,56 @@ GDExtensionMethodBindPtr gde_get_method_bind(ClassT)(string name, long hash) @no
         A method bind for the given classname, name and hash on success,
         $(D null) otherwise.
 */
-GDExtensionMethodBindPtr gde_get_method_bind(string className, string name, long hash) @nogc nothrow {
-    auto p_classname = gde_make_string_name(className);
-    auto p_methodname = gde_make_string_name(name);
-    auto p_method = classdb_get_method_bind(p_classname, p_methodname, hash);
-    gde_free_string_name(p_classname);
-    gde_free_string_name(p_methodname);
-    return p_method;
+GDExtensionMethodBindPtr gde_get_method_bind(string classname, string name, uint hash)() @nogc nothrow {
+    __gshared GDExtensionMethodBindPtr p_bind;
+    if (!p_bind) {
+        auto p_classname = gde_make_string_name(classname);
+        auto p_methodname = gde_make_string_name(name);
+        p_bind = classdb_get_method_bind(p_classname, p_methodname, hash);
+        gde_free_string_name(p_classname);
+        gde_free_string_name(p_methodname);
+    }
+    
+    return p_bind;
 }
 
 /**
-    Gets a GDExtension GDExtensionPtrBuiltInMethod for a given variant type, name and hash.
+    Binds the given method for the given classname, name and hash.
 
     Params:
-        type =  Type of the variant to get the method for..
+        T =     The class type to get the method for.
         name =  Name of the binding to get.
         hash =  Hash of the binding to get.
     
     Returns:
-        A function pointer to the builtin method.
+        A method bind for the given classname, name and hash on success,
+        $(D null) otherwise.
 */
-GDExtensionPtrBuiltInMethod gde_get_builtin_method(GDExtensionVariantType type, string name, long hash) @nogc nothrow {
-    auto p_methodname = gde_make_string_name(name);
-    auto p_method = variant_get_ptr_builtin_method(type, p_methodname, hash);
-    gde_free_string_name(p_methodname);
-    return p_method;
-}
-
-/**
-    Binds a native godot method by name and hash and calls it.
-
-    Params:
-        ptr =   Pointer to the type that the method should be called on.
-        args =  Arguments to pass to the function.
-    
-    Returns:
-        Return value depends on template, refer to Godot's
-        documentation.
-*/
-RetT gde_bind_and_call(GDExtensionVariantType type, string name, uint hash, RetT = void, Args...)(GDExtensionTypePtr ptr, Args args) @nogc {
-    __gshared GDExtensionPtrBuiltInMethod __bind;
-    if (!__bind)
-        __bind = gde_get_builtin_method(type, name, hash);
-    
-    void*[Args.length] __params;
-    static foreach_reverse(i, arg; args) {
-        static if (is(typeof(param) : GDEObject))
-            __params[i] = arg.ptr;
-        else
-            __params[i] = &arg;
+GDExtensionMethodBindPtr gde_get_method_bind(T, string name, uint hash)() @nogc nothrow {
+    __gshared GDExtensionMethodBindPtr p_bind;
+    if (!p_bind) {
+        auto p_classname = gde_make_string_name(classNameOf!T);
+        auto p_methodname = gde_make_string_name(name);
+        p_bind = classdb_get_method_bind(p_classname, p_methodname, hash);
+        gde_free_string_name(p_classname);
+        gde_free_string_name(p_methodname);
     }
-
-    static if (!is(RetT == void)) {
-        RetT rval = void;
-
-        __bind(ptr, __params.ptr, &rval, cast(int)Args.length);
-        return rval;
-    } else {
-        __bind(ptr, __params.ptr, null, cast(int)Args.length);
-    }
+    
+    return p_bind;
 }
 
 /**
-    Binds a variant operator and calls it.
+    Binds the given operator for the given variant type.
 
-    Params:
-        a = The left hand side of the operator.
-        b = The right hand side of the operator.
-    
     Returns:
-        Return value depends on template, refer to Godot's
-        documentation.
+        The bound operator, cached automatically.
 */
-GDExtensionInt get_bind_op_and_call(GDExtensionVariantOperator poperator, GDExtensionVariantType vta, GDExtensionVariantType vtb)(GDExtensionConstTypePtr a, GDExtensionConstTypePtr b) @nogc nothrow {
-    __gshared GDExtensionPtrOperatorEvaluator __bind;
-    if (!__bind)
-        __bind = variant_get_ptr_operator_evaluator(poperator, vta, vtb);
+GDExtensionPtrOperatorEvaluator gde_get_operator(GDExtensionVariantOperator op, GDExtensionVariantType lhs, GDExtensionVariantType rhs)() @nogc nothrow {
+    __gshared GDExtensionPtrOperatorEvaluator p_bind;
+    if (!p_bind)
+        p_bind = variant_get_ptr_operator_evaluator(op, lhs, rhs);
     
-    GDExtensionInt ret;
-    __bind(a, b, &ret);
-    return ret;
-}
-
-/**
-    Binds a native godot method by name and hash and calls it.
-
-    Params:
-        args = Arguments to pass to the function.
-    
-    Returns:
-        Return value depends on template, refer to Godot's
-        documentation.
-*/
-RetT gde_bind_and_call(string classname, string name, uint hash, RetT = void, Args...)(GDExtensionTypePtr ptr, Args args) @nogc {
-    __gshared GDExtensionMethodBindPtr __bind;
-    if (!__bind)
-        __bind = gde_get_method_bind(classname, name, hash);
-    
-    return gde_ptrcall!(RetT)(ptr, __bind, args);
-}
-
-/**
-    Binds and calls a godot type constructor.
-
-    Params:
-        args = Arguments to pass to the function.
-    
-    Returns:
-        Return value depends on template, refer to Godot's
-        documentation.
-*/
-void gde_bind_and_call_ctor(T, int ctor, Args...)(GDExtensionUninitializedTypePtr obj, Args args) @nogc {
-    __gshared GDExtensionPtrConstructor __bindfn;
-    if (!__bindfn)
-        __bindfn = cast(GDExtensionPtrConstructor)variant_get_ptr_constructor(variantTypeOf!T, ctor);
-    
-    static if (Args.length > 0) {
-        GDExtensionConstTypePtr[Args.length] __params;
-        static foreach(i; 0..Args.length) {
-            __params[i] = args[i];
-        }
-        __bindfn(obj, __params.ptr);
-    } else {
-        __bindfn(obj, null);
-    }
-}
-
-/**
-    Binds and calls a godot type constructor.
-
-    Params:
-        args = Arguments to pass to the function.
-    
-    Returns:
-        Return value depends on template, refer to Godot's
-        documentation.
-*/
-void gde_bind_and_call_ctor(GDExtensionVariantType VT, int ctor, Args...)(GDExtensionUninitializedTypePtr obj, Args args) @nogc {
-    __gshared GDExtensionPtrConstructor __bindfn;
-    if (!__bindfn)
-        __bindfn = cast(GDExtensionPtrConstructor)variant_get_ptr_constructor(VT, ctor);
-    
-    static if (Args.length > 0) {
-        GDExtensionConstTypePtr[Args.length] __params;
-        static foreach(i; 0..Args.length) {
-            __params[i] = args[i];
-        }
-        __bindfn(obj, __params.ptr);
-    } else {
-        __bindfn(obj, null);
-    }
+    return p_bind;
 }
 
 /**
@@ -227,65 +140,6 @@ void gde_unregister_extension_class(string className) @nogc {
     StringName* p_classname = gde_make_string_name(className);
     classdb_unregister_extension_class(__godot_class_library, p_classname);
     gde_free_string_name(p_classname);
-}
-
-/**
-    Calls a function on a given object object.
-
-    Params:
-        obj =       The object to call the method on.
-        method =    The method bind instance to call.
-        args =      The arguments to the function.
-
-    Returns:
-        The return value of the method bind
-*/
-RetT gde_ptrcall(RetT = void, Args...)(GDExtensionTypePtr obj, GDExtensionMethodBindPtr method, auto ref Args args) @nogc @system {
-
-    // Fill out arguments
-    GDExtensionConstTypePtr[Args.length] args_;
-    static foreach(int i; 0..Args.length) {
-        mixin("auto __tmp", i, " = gde_to_gd(args[i]);");
-        args_[i] = &mixin("__tmp", i);
-    }
-    
-    // Call
-    static if (!is(RetT == void)) {
-        RetT ret_;
-        object_method_bind_ptrcall(method, obj, args_.ptr, &ret_);
-        return ret_;
-    } else {
-        object_method_bind_ptrcall(method, obj, args_.ptr, null);
-    }
-}
-
-/**
-    Calls a static function.
-
-    Params:
-        method =    The method bind instance to call.
-        args =      The arguments to the function.
-
-    Returns:
-        The return value of the method bind
-*/
-RetT gde_ptrcall_static(RetT = void, Args...)(GDExtensionMethodBindPtr method, auto ref Args args) @nogc @system {
-
-    // Fill out arguments
-    GDExtensionConstTypePtr[Args.length] args_;
-    static foreach(int i; 0..Args.length) {
-        mixin("auto __tmp", i, " = gde_to_gd(args[i]);");
-        args_[i] = &mixin("__tmp", i);
-    }
-
-    // Call
-    static if (!is(RetT == void)) {
-        RetT ret_;
-        object_method_bind_ptrcall(method, null, args_.ptr, &ret_);
-        return ret_;
-    } else {
-        object_method_bind_ptrcall(method, null, args_.ptr, null);
-    }
 }
 
 /**
@@ -319,30 +173,6 @@ auto gde_get_func_instance(T, alias method)() @system @nogc nothrow {
 }
 
 /**
-    Calls a native function from a godot virtual call.
-*/
-void gde_gdcall(FuncT, ClassT)(FuncT fn, ClassT p_instance, const(GDExtensionConstTypePtr)* pargs, GDExtensionTypePtr rret) @nogc
-if (is(FuncT == return)) {
-    alias pTypes = parametersOf!FuncT;
-    alias rType = wrapTypeOf!(returnTypeOf!FuncT);
-    
-    pTypes __params;
-    __params[0] = p_instance;
-    static foreach(i; 1..pTypes.length) {
-        __params[i] = gde_from_gd!(pTypes[i])(pargs[i-1]);
-    }
-    
-    static if (!is(rType == void)) {
-
-        auto result = fn(__params);
-        *(cast(rType*)rret) = gde_to_gd(result);
-    } else {
-        
-        fn(__params);
-    }
-}
-
-/**
     Wraps a given method of a class with a godot ptrcall wrapper.
 
     Params:
@@ -350,26 +180,27 @@ if (is(FuncT == return)) {
         method =    Alias of the method to wrap.
 */
 pragma(inline, true)
-GDExtensionClassMethodPtrCall gde_wrap_method_ptrcall(T, alias method)() @nogc
+GDExtensionClassMethodPtrCall gde_wrap_ptrcall(T, alias method)() @nogc
 if (is(T : GDEObject)) {
     extern(C) GDExtensionClassMethodPtrCall fn = cast(GDExtensionClassMethodPtrCall)(void* method_userdata, T p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
         alias ReturnType = returnTypeOf!method;
         alias Params = parametersOf!method;
 
         // Get parameters.
-        Params __args = void;
-        static foreach(i; 0..__args.length) {
-            __args[i] = gde_from_gd!(Params[i])(p_args[i]);
+        Params p_params;
+        static foreach(i; 0..Params.length) {
+            gde_from_ptr(p_args[i], p_params[i]);
         }
 
         // Call.
         auto fn = gde_get_func_instance!(T, method);
         static if (!is(ReturnType == void)) {
-            auto result = fn(p_instance, __args);
-            *(cast(wrapTypeOf!(ReturnType)*)r_ret) = gde_to_gd(result);
+
+            auto d_return = fn(p_instance, p_params);
+            gde_to_ptr(d_return, r_ret);
         } else {
 
-            fn(p_instance, __args);
+            fn(p_instance, p_params);
         }
     };
 
@@ -384,8 +215,8 @@ if (is(T : GDEObject)) {
         method =    Alias of the method to wrap.
 */
 pragma(inline, true)
-GDExtensionClassMethodCall gde_wrap_method_call(T, alias method)() @nogc {
-    extern(C) GDExtensionClassMethodCall fn = cast(GDExtensionClassMethodCall)(void* method_userdata, T p_instance, Variant** p_args, GDExtensionInt p_argument_count, Variant* r_return, GDExtensionCallError* r_error) {
+GDExtensionClassMethodCall gde_wrap_varcall(T, alias method)() @nogc {
+    extern(C) GDExtensionClassMethodCall fn = cast(GDExtensionClassMethodCall)(void* methoduserdata, T p_instance, const(GDExtensionConstVariantPtr)* p_args, GDExtensionInt p_argument_count, GDExtensionVariantPtr r_return, GDExtensionCallError* r_error) {
         alias ReturnType = returnTypeOf!method;
         alias Params = parametersOf!method;
 
@@ -413,19 +244,20 @@ GDExtensionClassMethodCall gde_wrap_method_call(T, alias method)() @nogc {
         }
 
         // Unwrap the arguments into ones that the DLang side understands.
-        Params __args;
+        Params p_params;
         static foreach(i; 0..Params.length) {
-            __args[i] = gde_unwrap!(Params[i])(*p_args[i]);
+            gde_from_varptr!(Params[i])(p_args[i], p_params[i]);
         }
 
         // Wrap the return value to something that Godot understands, if needed.
         auto fn = gde_get_func_instance!(T, method);
         static if (!is(ReturnType == void)) {
-
-            *r_return = gde_wrap(fn(p_instance, __args));
+            
+            auto d_return = fn(p_instance, p_params);
+            gde_to_varptr(d_return, r_return);
         } else {
 
-            fn(p_instance, __args);
+            fn(p_instance, p_params);
         }
     };
     
@@ -497,7 +329,7 @@ void gde_destroy_property_info(ref GDExtensionPropertyInfo info) @nogc {
         The singleton if successful,
         $(D null) otherwise.
 */
-T gde_get_singleton(T)(string name)
+T gde_get_singleton(T)(string name) @nogc
 if (is(T : GDEObject)) {
     __gshared T __singleton_instance;
     if (!__singleton_instance) {
@@ -510,116 +342,35 @@ if (is(T : GDEObject)) {
 }
 
 /**
-    Converts a given D value to its Godot equivalent.
-
-    Params:
-        value = the value to convert to a godot equivalent.
-*/
-pragma(inline, true)
-ref auto gde_to_gd(T)(ref scope return T value) @nogc {
-    static if (is(T : GDEObject))
-        return value.ptr;
-    else static if (is(T == bool))
-        return value;
-    else static if (is(T == string))
-        return String(value);
-    else static if (is(T == U[], U) && is(PackedArray!U))
-        return gde_to_packed_array(value);
-    else static if (__traits(isIntegral, T))
-        return cast(GDExtensionInt)value;
-    else static if (__traits(isFloating, T))
-        return cast(double)value;
-    else 
-        return value;
-}
-
-/**
-    Converts a given Godot value to a given D equivalent.
-
-    Params:
-        value = the value to convert to a D equivalent.
-*/
-pragma(inline, true)
-T gde_from_gd(T)(GDExtensionConstTypePtr value) @nogc {
-    if (!value)
-        return T.init;
-
-    static if (is(T : GDEObject))
-        return gde_get!T(cast(GDExtensionObjectPtr)value);
-    else static if (is(T == string))
-        return *(cast(String*)value).toString();
-    else static if (is(T == U[], U) && is(PackedArray!U))
-        return gde_from_packed_array(*(cast(PackedArray!(U)*)value));
-    else static if (__traits(isIntegral, T))
-        return cast(T)*(cast(GDExtensionInt*)value);
-    else static if (__traits(isFloating, T))
-        return cast(T)*(cast(double*)value);
-    else
-        return *(cast(T*)value);
-}
-
-/**
-    Wraps the given D type in a variant.
+    Wraps the given value in a variant.
 
     Params:
         value = The value to wrap.
-
-    Returns:
-        The wrapped value.
 */
-Variant gde_wrap(T)(auto ref T value) @nogc {
-    static if (is(T == Variant))
-        return value;
-    else
-        return Variant(value);
+Variant gde_wrap(T)(T value) @nogc {
+    return Variant(value);
 }
 
 /**
-    Unwraps the given variant to a D type.
+    Unwraps the given variant.
 
     Params:
-        from = The variant to unwrap.
-
-    Returns:
-        The unwrapped value.
+        value = The value to unwrap.
 */
-T gde_unwrap(T)(auto ref Variant from) @nogc
-if (isVariant!T) {
-    import numem.core.traits : BaseElemOf;
-    import godot.core.lifetime : gde_get;
-        
-    static if (is(T == bool)) {
-        
-        bool result;
-        bool_from_variant(&result, &from);
-        return result;
-    } else static if (__traits(isIntegral, T)) {
+T gde_unwrap(T)(auto ref Variant value) @nogc {
+    T result;
+    gde_from_varptr(cast(GDExtensionVariantPtr)&value, result);
+    return result;
+}
 
-        static if (__traits(isUnsigned, T))
-            ulong result;
-        else
-            long result;
-        
-        int_from_variant(&result, &from);
-        return cast(T)result;
-    } else static if (__traits(isFloating, T)) {
+/**
+    Unwraps the given variant.
 
-        double result;
-        float_from_variant(&result, &from);
-        return cast(T)result;
-    } else static if (is(T == string)) {
-        
-        return String(from).toString();
-    } else static if (is(T : GDEObject)) {
-        
-        GDExtensionObjectPtr result;
-        object_from_variant(&result, &from);
-        return gde_class_get!T(result);
-    } else static if (is(T == Variant)) {
-
-        return from;  
-    } else {
-
-        return T(from);
-    }
+    Params:
+        value = The value to unwrap.
+*/
+T gde_unwrap(T)(GDExtensionVariantPtr value) @nogc {
+    T result;
+    gde_from_varptr(value, result);
+    return result;
 }

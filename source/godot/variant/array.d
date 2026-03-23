@@ -43,7 +43,7 @@ public:
     */
     static typeof(this) makeNew() {
         typeof(this) p_arr;
-        gde_bind_and_call_ctor!(typeof(this), 0)(&p_arr);
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 0)(&p_arr);
         static if (!is(T == Variant)) {
             static if (is(T : GDEObject)) {
                 auto p_classVARIANT_TYPE = StringName(classNameOf!T);
@@ -58,22 +58,22 @@ public:
     /**
         The size of the array.
     */
-    @property size_t size() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "size", 3173160232, GDExtensionInt)(&this);
+    @property size_t size() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "size", 3173160232, GDExtensionInt)(&this);
 
     /**
         Whether the array is empty.
     */
-    @property bool isEmpty() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "is_empty", 3918633141, bool)(&this);
+    @property bool isEmpty() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "is_empty", 3918633141, bool)(&this);
 
     /**
         The hash of this array.
     */
-    @property ulong hash() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "hash", 3918633141, GDExtensionInt)(&this);
+    @property ulong hash() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "hash", 3918633141, GDExtensionInt)(&this);
 
     /**
         Whether the array is read-only.
     */
-    @property bool isReadonly() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "is_read_only", 3918633141, GDExtensionBool)(&this);
+    @property bool isReadonly() => cast(bool)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "is_read_only", 3918633141, GDExtensionBool)(&this);
 
     /**
         Whether this array is valid.
@@ -85,9 +85,9 @@ public:
     */
     @property T front() {
         static if (is(T == Variant)) {
-            return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "front", 1460142086, Variant)(&this);
+            return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "front", 1460142086, Variant)(&this);
         } else {
-            return gde_unwrap!T(gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "front", 1460142086, Variant)(&this));
+            return gde_unwrap!T(gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "front", 1460142086, Variant)(&this));
         }
     }
 
@@ -96,9 +96,9 @@ public:
     */
     @property T back() {
         static if (is(T == Variant)) {
-            return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "back", 1460142086, Variant)(&this);
+            return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "back", 1460142086, Variant)(&this);
         } else {
-            return gde_unwrap!T(gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "back", 1460142086, Variant)(&this));
+            return gde_unwrap!T(gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "back", 1460142086, Variant)(&this));
         }
     }
 
@@ -122,14 +122,14 @@ public:
             A new array that is a duplicate of this array.
     */
     typeof(this) duplicate(bool deep = false) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "duplicate", 636440122, typeof(this))(&this, deep);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "duplicate", 636440122, typeof(this))(&this, deep);
     }
 
     /**
         Clears the array.
     */
     void clear() {
-        gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "clear", 3218959716)(&this);
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "clear", 3218959716)(&this);
     }
 
     /**
@@ -139,7 +139,7 @@ public:
             size = The new size of the array.
     */
     void resize(size_t size) {
-        cast(void)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "resize", 848867239, GDExtensionInt)(&this, cast(GDExtensionInt)size);
+        cast(void)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "resize", 848867239, GDExtensionInt)(&this, cast(GDExtensionInt)size);
     }
 
     /**
@@ -149,7 +149,7 @@ public:
             index = The index to remove the element at.
     */
     void removeAt(size_t index) {
-        gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "remove_at", 2823966027)(&this, cast(GDExtensionInt)index);
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "remove_at", 2823966027)(&this, cast(GDExtensionInt)index);
     }
 
     /**
@@ -160,9 +160,9 @@ public:
     */
     void fill()(auto ref T value) {
         static if (is(T == Variant)) {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "fill", 3316032543)(&this, value);
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "fill", 3316032543)(&this, value);
         } else {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "fill", 3316032543)(&this, gde_wrap!T(value));
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "fill", 3316032543)(&this, gde_wrap!T(value));
         }
     }
 
@@ -174,9 +174,9 @@ public:
     */
     void pushFront()(auto ref T value) {
         static if (is(T == Variant)) {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_front", 3316032543)(&this, value);
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_front", 3316032543)(&this, value);
         } else {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_front", 3316032543)(&this, gde_wrap!T(value));
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_front", 3316032543)(&this, gde_wrap!T(value));
         }
     }
 
@@ -188,9 +188,9 @@ public:
     */
     void pushFront()(auto ref T value) {
         static if (is(T == Variant)) {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_back", 3316032543)(&this, value);
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_back", 3316032543)(&this, value);
         } else {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_back", 3316032543)(&this, gde_wrap!T(value));
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_back", 3316032543)(&this, gde_wrap!T(value));
         }
     }
 
@@ -203,9 +203,9 @@ public:
     */
     void insert()(auto ref T value, ptrdiff_t at) {
         static if (is(T == Variant)) {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "insert", 3176316662)(&this, cast(GDExtensionInt)at, value);
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "insert", 3176316662)(&this, cast(GDExtensionInt)at, value);
         } else {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "insert", 3176316662)(&this, cast(GDExtensionInt)at, gde_wrap!T(value));
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "insert", 3176316662)(&this, cast(GDExtensionInt)at, gde_wrap!T(value));
         }
     }
 
@@ -280,11 +280,11 @@ public:
     */
     void opOpAssign(string op="~", T)(auto ref T value) {
         static if (is(T == typeof(this)) || (is(typeof(this) == TypedArray!Variant) && is(T == TypedArray!U, U))) {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append_array", 2307260970)(&this, value);
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append_array", 2307260970)(&this, value);
         } else static if (is(T == Variant)) {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append", 3316032543)(&this, value);
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append", 3316032543)(&this, value);
         } else {
-            gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append", 3316032543)(&this, gde_wrap!T(value));
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append", 3316032543)(&this, gde_wrap!T(value));
         }
     }
 }
@@ -400,15 +400,19 @@ public:
     enum Type = VARIANT_TYPE;
 
     /**
-        Alias to function which can be used to conver the packed array
-        to a variant.
+        Function used to convert a packed array to a variant.
     */
-    alias toVariantFunc = to_variant_func;
+    alias variant_from_packed_array = to_variant_func;
+
+    /**
+        Function used to convert a variant to a packed array.
+    */
+    alias packed_array_from_variant = from_variant_func;
     
     /**
         Size of the packed array.
     */
-    @property GDExtensionInt size() => gde_bind_and_call!(VARIANT_TYPE, "size", 3173160232, GDExtensionInt)(&this);
+    @property GDExtensionInt size() => gde_bcall_builtin!(VARIANT_TYPE, "size", 3173160232, GDExtensionInt)(&this);
 
     /**
         Pointer to the data stored in the packed array.
@@ -428,7 +432,7 @@ public:
                     The slice will be freed on completion.
     */
     this(T[] data) {
-        gde_bind_and_call_ctor!(VARIANT_TYPE, 0)(&this);
+        gde_bcall_ctor!(VARIANT_TYPE, 0)(&this);
         
         if (data) {
             this.resize(data.length);
@@ -454,7 +458,7 @@ public:
             other = The other array to construct this array from.
     */
     this(ref return scope typeof(this) other) {
-        gde_bind_and_call_ctor!(VARIANT_TYPE, 1)(&this, &other);
+        gde_bcall_ctor!(VARIANT_TYPE, 1)(&this, &other);
     }
 
     /**
@@ -464,7 +468,7 @@ public:
             size = The new size of the array.
     */
     void resize(size_t size) {
-        cast(void)gde_bind_and_call!(VARIANT_TYPE, "resize", 848867239, GDExtensionInt)(&this, cast(GDExtensionInt)size);
+        cast(void)gde_bcall_builtin!(VARIANT_TYPE, "resize", 848867239, GDExtensionInt)(&this, cast(GDExtensionInt)size);
     }
 
     /**

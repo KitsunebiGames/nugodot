@@ -42,60 +42,55 @@ public:
     /**
         The length of the String.
     */
-    @property size_t length() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "length", 3173160232, GDExtensionInt)(&this);
+    @property size_t length() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "length", 3173160232, GDExtensionInt)(&this);
 
     /**
         Whether the string is empty.
     */
-    @property bool isEmpty() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "is_empty", 3918633141, bool)(&this);
+    @property bool isEmpty() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "is_empty", 3918633141, bool)(&this);
 
     /**
         Whether the string is a relative path.
     */
-    @property bool isRelativePath() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "is_relative_path", 3918633141, bool)(&this);
+    @property bool isRelativePath() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "is_relative_path", 3918633141, bool)(&this);
 
     /**
         Whether the string is an absolute path.
     */
-    @property bool isAbsolutePath() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "is_absolute_path", 3918633141, bool)(&this);
+    @property bool isAbsolutePath() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "is_absolute_path", 3918633141, bool)(&this);
 
     /**
         File extension portion of the path string.
     */
-    @property String extension() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "get_extension", 3942272618, String)(&this);
+    @property String extension() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "get_extension", 3942272618, String)(&this);
 
     /**
         Base name portion of the path string.
     */
-    @property String baseName() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "get_basename", 3942272618, String)(&this);
+    @property String baseName() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "get_basename", 3942272618, String)(&this);
 
     /**
         Base path portion of the path string.
     */
-    @property String basePath() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "get_base_dir", 3942272618, String)(&this);
+    @property String basePath() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "get_base_dir", 3942272618, String)(&this);
 
     /**
         File portion of the path string.
     */
-    @property String file() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "get_file", 3942272618, String)(&this);
-
-    /// Destructor
-    ~this() {
-        string_destroy(&this);
-    }
+    @property String file() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "get_file", 3942272618, String)(&this);
 
     /**
         Copy-constructor
     */
     this(ref return scope String other) {
-        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 1)(&this, &other);
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 1)(&this, &other);
     }
 
     /**
         Constructs a String from a StringName
     */
     this(ref return scope StringName other) {
-        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 2)(&this, &other);
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_STRING, 2)(&this, &other);
     }
 
     /**
@@ -151,7 +146,7 @@ public:
             $(D false) otherwise.
     */
     bool beginsWith(String text) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "begins_with", 2566493496, bool)(&this, text);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "begins_with", 2566493496, bool)(&this, text);
     }
 
     /// ditto
@@ -170,7 +165,7 @@ public:
             $(D false) otherwise.
     */
     bool endsWith(String text) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "ends_with", 2566493496, bool)(&this, text);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "ends_with", 2566493496, bool)(&this, text);
     }
 
     /// ditto
@@ -189,7 +184,7 @@ public:
             $(D false) otherwise.
     */
     bool contains(String text) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "contains", 2566493496, bool)(&this, text);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "contains", 2566493496, bool)(&this, text);
     }
 
     /// ditto
@@ -208,7 +203,7 @@ public:
             The strings joined together as a file path string.
     */
     String pathJoin(String path) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING, "path_join", 3134094431, String)(&this, path);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING, "path_join", 3134094431, String)(&this, path);
     }
 
     /**
@@ -322,30 +317,25 @@ public:
     /**
         The length of the StringName.
     */
-    @property size_t length() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "length", 3173160232, GDExtensionInt)(&this);
+    @property size_t length() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "length", 3173160232, GDExtensionInt)(&this);
 
     /**
         Pointer to string name in heap.
     */
     @property void* ptr() inout => cast(void*)data_;
 
-    /// Destructor
-    ~this() {
-        string_name_destroy(&this);
-    }
-
     /**
         Copy-constructor
     */
     this(ref return scope StringName other) {
-        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, 1)(&this, &other);
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, 1)(&this, &other);
     }
 
     /**
         Copy-constructor
     */
     this(ref String other) {
-        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, 2)(&this, &other);
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, 2)(&this, &other);
     }
 
     /**
@@ -369,7 +359,7 @@ public:
         Compares equality between 2 StringName's
     */
     bool opEquals(ref StringName other) {
-        return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, &other);
+        return cast(bool)gde_bcall_op!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, &other);
     }
 
     /**
@@ -378,7 +368,7 @@ public:
     bool opEquals(string other) inout {
         StringName* p_other = gde_make_string_name(other);
         scope(exit) gde_free_string_name(p_other);
-        return cast(bool)get_bind_op_and_call!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, p_other);
+        return cast(bool)gde_bcall_op!(GDEXTENSION_VARIANT_OP_EQUAL, GDEXTENSION_VARIANT_TYPE_STRING_NAME, GDEXTENSION_VARIANT_TYPE_STRING_NAME)(&this, p_other);
     }
 
     /**
@@ -402,7 +392,7 @@ public:
             The hash of the StringName.
     */
     size_t toHash() const @trusted nothrow {        
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "hash", 3173160232, GDExtensionInt)(cast(StringName*)&this);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "hash", 3173160232, GDExtensionInt)(cast(StringName*)&this);
     }
 }
 
@@ -465,17 +455,12 @@ public:
     /**
         Whether the NodePath is absolute.
     */
-    @property bool isAbsolute() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "is_absolute", 3918633141, GDExtensionBool)(&this);
+    @property bool isAbsolute() => cast(bool)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "is_absolute", 3918633141, GDExtensionBool)(&this);
 
     /**
         Count of names in the path.
     */
-    @property int nameCount() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "get_name_count", 3173160232, GDExtensionInt)(&this);
-
-    /// Destructor
-    ~this() {
-        node_path_destroy(&this);
-    }
+    @property int nameCount() => cast(bool)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "get_name_count", 3173160232, GDExtensionInt)(&this);
 
     /**
         Constructs a NodePath from a variant.
@@ -494,6 +479,6 @@ public:
             The hash of the NodePath.
     */
     size_t toHash() const @trusted nothrow {        
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "hash", 3173160232, GDExtensionInt)(cast(String*)&this);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_NODE_PATH, "hash", 3173160232, GDExtensionInt)(cast(String*)&this);
     }
 }

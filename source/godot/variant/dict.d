@@ -36,22 +36,22 @@ public:
     /**
         The size of the dictionary.
     */
-    @property size_t size() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "size", 3173160232, GDExtensionInt)(&this);
+    @property size_t size() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "size", 3173160232, GDExtensionInt)(&this);
 
     /**
         Whether the dictionary is empty.
     */
-    @property bool isEmpty() => cast(size_t)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "is_empty", 3918633141, bool)(&this);
+    @property bool isEmpty() => cast(size_t)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "is_empty", 3918633141, bool)(&this);
 
     /**
         The keys of the dictionary.
     */
-    @property TypedArray!TKey keys() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "keys", 4144163970, TypedArray!TKey)(&this);
+    @property TypedArray!TKey keys() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "keys", 4144163970, TypedArray!TKey)(&this);
 
     /**
         The values of the dictionary.
     */
-    @property TypedArray!TValue values() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "values", 4144163970, TypedArray!TValue)(&this);
+    @property TypedArray!TValue values() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "values", 4144163970, TypedArray!TValue)(&this);
 
     /**
         Constructs an RID from a variant.
@@ -60,7 +60,7 @@ public:
             variant = The variant.
     */
     this(ref return scope TypedDictionary!(TKey, TValue) other) {
-        gde_bind_and_call_ctor!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, 1)(&this, &other);
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, 1)(&this, &other);
     }
 
     /**
@@ -85,7 +85,7 @@ public:
     */
     TValue opIndex(TKey key) {
         auto p_key = gde_wrap(key);
-        return gde_from_gd!TValue(dictionary_operator_index(&this, &p_key));
+        return gde_unwrap!TValue(dictionary_operator_index(&this, &p_key));
     }
 
     /**
@@ -100,7 +100,7 @@ public:
             $(D false) otherwise.
     */
     bool opIndexAssign(TValue value, TKey key) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "set", 2175348267, bool)(&this, gde_wrap(key), gde_wrap(value));
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "set", 2175348267, bool)(&this, gde_wrap(key), gde_wrap(value));
     }
 
     /**
@@ -114,7 +114,7 @@ public:
             $(D false) otherwise.
     */
     bool has(TKey key) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "has", 3680194679, bool)(&this, gde_wrap(key));
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "has", 3680194679, bool)(&this, gde_wrap(key));
     }
 
     /**
@@ -128,20 +128,20 @@ public:
             $(D false) otherwise.
     */
     bool erase(TKey key) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "has", 1776646889, bool)(&this, gde_wrap(key));
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "has", 1776646889, bool)(&this, gde_wrap(key));
     }
 
     /**
         Clears the dictionary of values.
     */
     void clear() {
-        gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "clear", 3218959716)(&this);
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "clear", 3218959716)(&this);
     }
 
     /**
         Gets the dictionary's hash.
     */
     size_t toHash() const @trusted nothrow {        
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "hash", 3173160232, GDExtensionInt)(cast(TypedDictionary!(TKey, TValue)*)&this);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "hash", 3173160232, GDExtensionInt)(cast(TypedDictionary!(TKey, TValue)*)&this);
     }
 }

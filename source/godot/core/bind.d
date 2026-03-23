@@ -104,13 +104,9 @@ if (is(T : GDEObject)) {
         extern(C) __gshared GDExtensionObjectPtr __gde_class_create(void* p_userdata, GDExtensionBool p_postinit) @nogc {
             
             T p_object = gde_alloc_class!T();
-            
-            // NOTE:    Godot requires the POST_INITIALIZE notification to be called.
             if (p_postinit) {
-                auto p_bind = gde_get_method_bind("Object", "notification", GDEXTENSION_NOTIFICATION_FUNC_HASH);
-                gde_ptrcall(p_object.ptr, p_bind, 0, false);
+                gde_bptrcall_method!("Object", "notification", GDEXTENSION_NOTIFICATION_FUNC_HASH)(p_object.ptr, 0, false);
             }
-
             return p_object.ptr;
         }
 
@@ -118,7 +114,7 @@ if (is(T : GDEObject)) {
         pragma(mangle, gdeMangleOf!(T, __gde_class_free))
         extern(C) __gshared void __gde_class_free(void* p_userdata, GDExtensionClassInstancePtr p_instance) @nogc {
             if (T object = cast(T)p_instance) {
-                gde_class_instance_free(object);
+                gde_free_class(object);
             }
         }
     }
@@ -199,8 +195,8 @@ if (is(T : GDEObject)) {
         // Final & static functions.
         GDExtensionClassMethodInfo p_methodinfo = GDExtensionClassMethodInfo(
             name: p_methodname,
-            call_func: gde_wrap_method_call!(T, method)(),
-            ptrcall_func: gde_wrap_method_ptrcall!(T, method)(),
+            call_func: gde_wrap_varcall!(T, method)(),
+            ptrcall_func: gde_wrap_ptrcall!(T, method)(),
             method_flags: cast(uint)p_methodflags,
             has_return_value: !is(returnTypeOf!method == void),
             return_value_info: &p_return,
@@ -338,7 +334,7 @@ template __gde_class_get_virtual_call_data(T) {
 
 template __gde_class_call_virtual_with_data(T) {
     pragma(mangle, gdeMangleOf!(T, __gde_class_call_virtual_with_data))
-    extern(C) void __gde_class_call_virtual_with_data(GDExtensionClassInstancePtr pinstance, GDExtensionConstStringNamePtr pname, void* pvirtualcalluserdata, const(GDExtensionConstTypePtr)* pargs, GDExtensionTypePtr rret) @nogc {
+    extern(C) void __gde_class_call_virtual_with_data(GDExtensionClassInstancePtr pinstance, GDExtensionConstStringNamePtr pname, void* pvirtualcalluserdata, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
 
         T p_instance = cast(T)pinstance;
         static foreach(method; boundMethodsOf!T) {
@@ -348,8 +344,7 @@ template __gde_class_call_virtual_with_data(T) {
                 // We only care about overridden methods.
                 static if (__traits(isOverrideFunction, mthd)) {
                     if (pvirtualcalluserdata == cast(void*)gde_get_func_instance!(T, mthd)()) {
-                        auto fn = gde_get_func_instance!(T, mthd)();
-                        gde_gdcall(fn, p_instance, pargs, rret);
+                        gde_dcall!(T, mthd)(p_instance, p_args, r_ret);
                     }
                 }
             }

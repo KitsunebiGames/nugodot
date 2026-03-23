@@ -9,6 +9,7 @@
 module godot.variant.variant;
 import godot.core.gdextension;
 import godot.core.object;
+import godot.core.arg;
 import godot.variant;
 import godot.globals;
 import numem;
@@ -47,21 +48,6 @@ public:
         return value;
     }
 
-    /// Destructor
-    ~this() {
-        variant_destroy(&this);
-    }
-
-    /**
-        Constructs a variant from a variant.
-
-        Params:
-            variant = The variant to copy.
-    */
-    this(ref return scope Variant variant) {
-        variant_new_copy(&this, &variant);
-    }
-
     /**
         Constructs a variant from a compatible type.
 
@@ -69,62 +55,7 @@ public:
             value = The new value to give the variant.
     */
     this(T)(auto ref T value) {
-        static if (is(T : GDEObject)) {
-
-            // NOTE:    GDExtension assumes that the Object ptr is stored in a struct
-            //          as such we just place it on the stack and take a reference to
-            //          the stack location to emulate such an arrangement. 
-            if (value) {
-                variant_from_object(&this, &(value.ptr()));
-            }
-            
-        } else static if (is(T == Variant)) {
-            
-            variant_new_copy(&this, &value);
-        } else static if (is(T == bool)) {
-
-            variant_from_bool(&this, &value);
-        } else static if (__traits(isIntegral, T)) {
-            static if (__traits(isUnsigned, T))
-                ulong _tmp = cast(ulong)value;
-            else
-                long _tmp = cast(long)value;
-            
-            variant_from_int(&this, &_tmp);
-        } else static if (__traits(isFloating, T)) {
-            
-            double _tmp = cast(double)value;
-            variant_from_float(&this, &_tmp);
-        } else static if (is(T == VectorImpl!U, U...)) {
-            
-            T.toVariantFunc(&this, &value);
-        } else static if (is(T == StringName)) {
-            
-            variant_from_string_name(&this, &value);
-        } else static if (is(T == String)) {
-            
-            variant_from_string(&this, &value);
-        } else static if (is(T == RID)) {
-            
-            variant_from_rid(&this, &value);
-        } else static if (is(T == TypedArray!U, U)) {
-            
-            variant_from_array(&this, &value);
-        } else static if (is(T == TypedDictionary!U, U...)) {
-            
-            variant_from_dictionary(&this, &value);
-        } else static if (is(T == PackedArray!U, U)) {
-            
-            T.toVariantFunc(&this, &value);
-        } else static if (is(T == U[], U) && is(PackedArray!U)) {
-            
-            this(gde_to_packed_array(value));
-        } else static if (is(T == string)) {
-
-            variant_from_string(&this, gde_make_string(value));
-        } else {
-            static assert(0, T.stringof~" cannot be put into a Variant!");
-        }
+        gde_to_varptr(value, cast(void*)&this);
     }
 
     /**

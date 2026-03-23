@@ -16,6 +16,7 @@ import godot.variant;
 public import numem.core.math;
 public import numem.core.lifetime;
 public import numem.lifetime;
+import godot.ref_counted;
 
 /**
     Constructs a new type using the godot allocator.
@@ -28,7 +29,6 @@ public import numem.lifetime;
 */
 Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
     static if (is(T : GDEObject)) {
-        
         return gde_alloc_class!T();
     } else {
         Ref!T mem = cast(Ref!T)nu_malloc(AllocSize!T, true);
@@ -45,11 +45,14 @@ Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
 */
 void gd_delete(T)(ref T value) @trusted @nogc {
     import numem.core.hooks : nu_free;
+    
     static if (is(T : GDEObject)) {
-        static if(is(typeof(value.__xdtor)))
-            value.__xdtor();
-        
-        object_destroy(value.ptr);
+        if (value) {
+            static if(is(typeof(T.__xdtor)))
+                value.__xdtor();
+
+            object_destroy(value.ptr);
+        }
     } else {
         static if (isPointer!T)
             T* p_value = value;
@@ -98,6 +101,71 @@ void gd_delete(T)(ref T value) @trusted @nogc {
         
         value = T.init;
     }
+}
+
+/**
+    Adds a reference to a refcounted godot object.
+
+    Params:
+        p_rcobject = The object to add a refernece on.
+
+    Returns:
+        The referenced object, may be null if godot freed
+        the object.
+*/
+ref T gde_ref(T)(ref return scope T p_rcobject) @nogc
+if (is(T : RefCounted)) {
+    if (!p_rcobject)
+        return p_rcobject;
+    
+    // Object was freed by godot.
+    if (object_get_instance_id(p_rcobject.ptr) == 0) {
+        p_rcobject = null;
+        return p_rcobject;
+    }
+    
+    p_rcobject.reference();
+    return p_rcobject;
+}
+
+/**
+    Subtracts a reference to a refcounted godot object.
+
+    Params:
+        p_rcobject = The object to remove a refernece from.
+
+    Returns:
+        The referenced object, may be null if godot freed
+        the object.
+*/
+ref T gde_unref(T)(ref return scope T p_rcobject) @nogc
+if (is(T : RefCounted)) {
+    if (!p_rcobject)
+        return p_rcobject;
+
+    p_rcobject.unreference();
+    
+    // Object was freed by godot.
+    if (object_get_instance_id(p_rcobject.ptr) == 0)
+        p_rcobject = null;
+    
+    return p_rcobject;
+}
+
+/**
+    Swaps the reference between 2 refcounted classes.
+
+    Params:
+        p_old = The old type that will have its refcount lowered.
+        p_new = The new type that will have its refcount increased.
+    
+    Returns:
+        The new value, that can be assigned to a D variable.
+*/
+T gde_refswap(T)(T p_old, T p_new) @nogc
+if (is(T : RefCounted)) {
+    gde_unref(p_old);
+    return gde_ref(p_new);
 }
 
 /**

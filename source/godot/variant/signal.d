@@ -29,11 +29,6 @@ public:
     /// Type of arguments to the signal.
     alias ArgsT = Args;
 
-    /// Destructor
-    ~this() {
-        signal_destroy(&this);
-    }
-
     /**
         Constructs a Signal from a variant.
 
@@ -51,7 +46,7 @@ public:
             signal = The signal to construct this one from.
     */
     this(Signal signal) {
-        gde_bind_and_call_ctor!(typeof(this), 1)(&this, &signal);
+        gde_bcall_ctor!(typeof(this), 1)(&this, &signal);
     }
 
     /**
@@ -62,33 +57,33 @@ public:
             signal = The name of the signal.
     */
     this(GDEObject object, StringName signal) {
-        gde_bind_and_call_ctor!(typeof(this), 2)(&this, object.ptr, &signal);
+        gde_bcall_ctor!(typeof(this), 2)(&this, object.ptr, &signal);
     }
 
     /**
         Whether the signal is null
     */
-    @property bool isNull() => cast(bool)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "is_null", 3918633141, bool)(&this);
+    @property bool isNull() => cast(bool)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "is_null", 3918633141, bool)(&this);
 
     /**
         Whether the signal has any connections
     */
-    @property bool hasConnections() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "has_connections", 3918633141, bool)(&this);
+    @property bool hasConnections() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "has_connections", 3918633141, bool)(&this);
 
     /**
         The name of this signal
     */
-    @property StringName name() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_name", 1825232092, StringName)(&this);
+    @property StringName name() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_name", 1825232092, StringName)(&this);
 
     /**
         The Object this signal applies to.
     */
-    @property GDEObject object() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_object", 4008621732, GDEObject)(&this);
+    @property GDEObject object() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_object", 4008621732, GDEObject)(&this);
 
     /**
         The ID of the object this signal applies to.
     */
-    @property GDExtensionInt objectId() => gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_object_id", 3173160232, GDExtensionInt)(&this);
+    @property GDExtensionInt objectId() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_object_id", 3173160232, GDExtensionInt)(&this);
 
     /**
         Gets the active connections of the signal.
@@ -98,7 +93,7 @@ public:
             signal connections.
     */
     Array getConnections() {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_connections", 4144163970, Array)(&this);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "get_connections", 4144163970, Array)(&this);
     }
 
     /**
@@ -112,7 +107,7 @@ public:
             $(D false) otherwise.
     */
     bool isConnectedTo(Callable callable) {
-        return gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "is_connected", 4129521963, bool)(&this, callable);
+        return gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "is_connected", 4129521963, bool)(&this, callable);
     }
 
     /**
@@ -127,7 +122,7 @@ public:
             Any other $(D Error) otherwise.
     */
     int connect(Callable callable, GDExtensionInt flags = 0) {
-        return cast(int)gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "connect", 979702392, GDExtensionInt)(&this, callable, flags);
+        return cast(int)gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "connect", 979702392, GDExtensionInt)(&this, callable, flags);
     }
 
     /**
@@ -137,7 +132,7 @@ public:
             callable =  The callable to disconnect.
     */
     void disconnect(Callable callable) {
-        gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "disconnect", 3470848906)(&this, callable);
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "disconnect", 3470848906)(&this, callable);
     }
 
     /**

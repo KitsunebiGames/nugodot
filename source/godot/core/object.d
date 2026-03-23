@@ -166,13 +166,10 @@ if (is(T : GDEObject)) {
     static if (is(T PT == super)) {
         static if (!__traits(isAbstractClass, T)) {
 
-            // Construct a godot object
-            StringName* p_classname = gde_make_string_name(classNameOf!PT);
-            void* p_object = classdb_construct_object2(p_classname);
-            gde_free_string_name(p_classname);
+            // Construct the super class
+            void* p_object = gde_class_construct(classNameOf!PT);
 
-            // NOTE:    Allocate and base-initialize the class.
-            //          This will NOT call any constructors.
+            // Construct the class instance.
             T p_instance = gde_class_alloc_empty!T();
             gde_class_assign(p_object, p_instance);
             gde_class_bind_signals(p_instance);
@@ -183,6 +180,44 @@ if (is(T : GDEObject)) {
             return null;
         }
     }
+}
+
+/**
+    Frees a class instance.
+
+    Params:
+        object = The object instance to free.
+*/
+void gde_free_class(T)(ref T object) @system @nogc
+if (is(T : GDEObject)) {
+    void* objptr = reinterpret_cast!(void*)(object);
+    if (objptr) {
+        static if (is(typeof(T.__xdtor)))
+            object.__xdtor();
+        else static if (is(typeof(T.__dtor)))
+            object.__dtor();
+        
+        nu_free(objptr);
+        object = null;
+    }
+}
+
+/**
+    Constructs a non-bound Godot class with the given name.
+
+    Params:
+        classname = The name of the class to construct.
+    
+    Returns:
+        The constructed object.
+*/
+GDExtensionObjectPtr gde_class_construct(string classname) @nogc nothrow {
+
+    // Construct a godot object
+    StringName* p_classname = gde_make_string_name(classname);
+    void* p_object = classdb_construct_object2(p_classname);
+    gde_free_string_name(p_classname);
+    return p_object;
 }
 
 /**
@@ -222,7 +257,7 @@ if (is(T : GDEObject)) {
     Returns:
         A newly allocated wrapper class.
 */
-T gde_class_bind_instance(T)(GDExtensionObjectPtr p_object) @system @nogc {
+T gde_class_bind_instance(T)(inout(GDExtensionObjectPtr) p_object) @system @nogc {
 
     // NOTE:    Allocate and base-initialize the class.
     //          This will NOT call any constructors.
@@ -230,6 +265,89 @@ T gde_class_bind_instance(T)(GDExtensionObjectPtr p_object) @system @nogc {
     gde_class_assign(p_object, p_instance);
     gde_class_bind_signals(p_instance);
     return p_instance;
+}
+
+/**
+    Gets a bound D class for a godot class.
+
+    Params:
+        p_object = The object to fetch.
+*/
+T gde_class_get(T)(inout(GDExtensionObjectPtr) p_object) @system @nogc {
+
+    // 1. No object to have bindings.
+    if (p_object is null)
+        return null;
+
+    // 2. Try to get binding without callbacks.
+    if (auto p_binding = object_get_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, null))
+        return cast(T)p_binding;
+
+    // 3. Try with native godot callbacks
+    static if (isGodotNativeClass!T) {
+        if (auto p_binding = object_get_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, &__nu_gde_instance_callbacks!T))
+            return cast(T)p_binding;
+    }
+    
+    // 3. No bindings.
+    return null;
+}
+
+/**
+    Gets or creates a DLang binding for a given object.
+
+    Params:
+        p_object = The object to fetch.
+*/
+T gde_class_get_or_bind(T)(inout(GDExtensionObjectPtr) p_object) @system @nogc {
+    if (p_object is null)
+        return null;
+
+    if (auto p_binding = gde_class_get!T(p_object))
+        return p_binding;
+
+    // No bindings, create one.
+    return gde_class_bind_instance!T(p_object);
+}
+
+/**
+    Assigns a D class to a Godot class instance.
+
+    Params:
+        p_object =      The object instance
+        p_instance =    The instance to assign to the class.
+*/
+void gde_class_assign(T, bool singleton = false)(inout(GDExtensionObjectPtr) p_object, T p_instance) @system @nogc {
+
+    // Refer to our D object in the Godot instance.
+    static if (!singleton) {
+        StringName* p_classname = gde_make_string_name(classNameOf!T);
+        object_set_instance(cast(GDExtensionObjectPtr)p_object, p_classname, cast(void*)p_instance);
+        object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
+        gde_free_string_name(p_classname);
+    }
+
+    // Refer back to our object in our bound instance.
+    (cast(GDEObject)p_instance).ptr_ = cast(GDExtensionObjectPtr)p_object;
+    
+    // Call type base constructor while we're at it.
+    static if (is(typeof(() => T.init.__ctor())))
+        p_instance.__ctor();
+}
+
+/**
+    Binds signals for the given class instance.
+
+    Params:
+        p_instance = the instance to bind.
+*/
+void gde_class_bind_signals(T)(T p_instance) @nogc {
+    StringName* p_signalname;
+    static foreach(signal; boundSignalsOf!T) {
+        p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
+        __traits(getMember, p_instance, signal) = typeof(__traits(getMember, T, signal))(p_instance, p_signalname);
+        gde_free_string_name(p_signalname);
+    }
 }
 
 /**
@@ -293,92 +411,6 @@ if (is(TFrom : GDEObject) && is(TTo : GDEObject)) {
     }
 }
 
-/**
-    Gets a bound D class for a godot class.
-
-    Params:
-        p_object = The object to fetch.
-*/
-T gde_class_get(T)(GDExtensionObjectPtr p_object) @system @nogc {
-
-    // 1. No object to have bindings.
-    if (p_object is null)
-        return null;
-
-    // 2. Try to get binding without callbacks.
-    if (auto p_binding = object_get_instance_binding(p_object, __godot_class_library, null))
-        return cast(T)p_binding;
-
-    // 3. Try with native godot callbacks
-    static if (isGodotNativeClass!T) {
-        if (auto p_binding = object_get_instance_binding(p_object, __godot_class_library, &__nu_gde_instance_callbacks!T))
-            return cast(T)p_binding;
-    }
-    
-    // 3. No bindings.
-    return null;
-}
-
-/**
-    Assigns a D class to a Godot class instance.
-
-    Params:
-        p_object =      The object instance
-        p_instance =    The instance to assign to the class.
-*/
-void gde_class_assign(T, bool singleton = false)(GDExtensionObjectPtr p_object, T p_instance) @system @nogc {
-
-    // Refer to our D object in the Godot instance.
-    static if (!singleton) {
-        StringName* p_classname = gde_make_string_name(classNameOf!T);
-        object_set_instance(p_object, p_classname, cast(void*)p_instance);
-        object_set_instance_binding(p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
-        gde_free_string_name(p_classname);
-    }
-
-    // Refer back to our object in our bound instance.
-    (cast(GDEObject)p_instance).ptr_ = p_object;
-    
-    // Call type base constructor while we're at it.
-    static if (is(typeof(() => T.init.__ctor())))
-        p_instance.__ctor();
-}
-
-/**
-    Binds signals for the given class instance.
-
-    Params:
-        p_instance = the instance to bind.
-*/
-void gde_class_bind_signals(T)(T p_instance) @nogc {
-    StringName* p_signalname;
-    static foreach(signal; boundSignalsOf!T) {
-        p_signalname = gde_make_string_name(signalNameOf!(__traits(getMember, T, signal)));
-        __traits(getMember, p_instance, signal) = typeof(__traits(getMember, T, signal))(p_instance, p_signalname);
-        gde_free_string_name(p_signalname);
-    }
-}
-
-/**
-    Frees a class instance.
-
-    Params:
-        object = The object instance to free.
-*/
-void gde_class_instance_free(T)(ref T object) @system @nogc
-if (is(T : GDEObject)) {
-    void* objptr = reinterpret_cast!(void*)(object);
-    if (objptr) {
-        static if (is(typeof(T.__xdtor)))
-            object.__xdtor();
-        else static if (is(typeof(T.__dtor)))
-            object.__dtor();
-        
-        nu_free(objptr);
-        object = null;
-    }
-}
-
 //
 //              IMPLEMENTATION DETAILS
 //
@@ -394,7 +426,7 @@ template __nu_gde_instance_callbacks(T) {
         pragma(mangle, "__nu_gde_free_callback_"~__traits(identifier, T))
         extern(C) void __nu_gde_free_callback(void *p_token, void *p_instance, void *p_binding) @nogc {
             if (T object = cast(T)p_binding) {
-                gde_class_instance_free(object);
+                gde_free_class(object);
             }
         }
 

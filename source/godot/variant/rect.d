@@ -21,11 +21,13 @@ private:
     static if (is(T == gd_float)) {
 
         enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_RECT2;
-        alias fromVariantFunc = rect2_from_variant;
+        alias from_variant_func = rect2_from_variant;
+        alias to_variant_func = variant_from_rect2;
     } else static if (is(T == int)) {
 
         enum VARIANT_TYPE = GDEXTENSION_VARIANT_TYPE_RECT2I;
-        alias fromVariantFunc = rect2i_from_variant;
+        alias from_variant_func = rect2i_from_variant;
+        alias to_variant_func = variant_from_rect2i;
     } else {
 
         static assert(0, typeof(this).stringof~" not supported by Godot.");
@@ -55,6 +57,16 @@ public:
     enum Type = VARIANT_TYPE;
 
     /**
+        Function used to convert a rectangle to a variant.
+    */
+    alias variant_from_rect = to_variant_func;
+
+    /**
+        Function used to convert a variant to a rectangle.
+    */
+    alias rect_from_variant = from_variant_func;
+
+    /**
         The area of the rectangle.
     */
     @property T area() => width * height;
@@ -76,7 +88,7 @@ public:
             variant = The variant to unwrap.
     */
     this()(auto ref Variant variant) {
-        fromVariantFunc(&this, &variant);
+        rect_from_variant(&this, &variant);
     }
 
     /**

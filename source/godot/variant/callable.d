@@ -42,7 +42,7 @@ public:
     if (variantTypeOf!T != GDEXTENSION_VARIANT_TYPE_NIL) {
         Variant p_variant = gde_wrap!T(variant);
         StringName p_method_name = StringName(method);
-        auto p_callable = gde_bind_and_call!(GDEXTENSION_VARIANT_TYPE_CALLABLE, "create", 1709381114, Callable)(null, p_variant, p_method_name);
+        auto p_callable = gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_CALLABLE, "create", 1709381114, Callable)(null, p_variant, p_method_name);
         return p_callable;
     }
     

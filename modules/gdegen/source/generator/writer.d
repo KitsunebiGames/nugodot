@@ -438,29 +438,19 @@ public:
                 string[] params_ = mthd_t.params.toParamList(true)~["Args args"];
                 this.writef("%s %s(Args...)(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, params_.join(", "));
                 this.beginBlock();
-                    this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
-                    this.writeln("if (!__bind)");
-                    this.indent(4);
-                        this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
-                    this.unindent();
                     if (mthd_t.params.length > 0)
-                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind, %s, args);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
+                        this.writefln("return gde_bptrcall_method!(typeof(this), \"%s\", %s, %s)(ptr, %s);", mthd_t.name, mthd_t.hash, mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
                     else
-                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind, args);", mthd_t.returnType.d_full_name);
+                        this.writefln("return gde_bptrcall_method!(typeof(this), \"%s\", %s, %s)(ptr);", mthd_t.name, mthd_t.hash, mthd_t.returnType.d_full_name);
                 this.endBlock();
             } else if (mthd_t.isStatic) {
                 this.write("static ");
                 this.writef("%s %s(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, mthd_t.params.toParamList(true).join(", "));
                 this.beginBlock();
-                    this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
-                    this.writeln("if (!__bind)");
-                    this.indent(4);
-                        this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
-                    this.unindent();
                     if (mthd_t.params.length > 0)
-                        this.writefln("return gde_ptrcall_static!(%s)(__bind, %s);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
+                        this.writefln("return gde_bptrcall_method!(typeof(this), \"%s\", %s, %s)(null, %s);", mthd_t.name, mthd_t.hash, mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
                     else
-                        this.writefln("return gde_ptrcall_static!(%s)(__bind);", mthd_t.returnType.d_full_name);
+                        this.writefln("return gde_bptrcall_method!(typeof(this), \"%s\", %s, %s)(null);", mthd_t.name, mthd_t.hash, mthd_t.returnType.d_full_name);
                 this.endBlock();
 
             } else {
@@ -473,15 +463,10 @@ public:
 
                 this.writef("%s %s(%s) ", mthd_t.returnType.d_full_name, mthd_t.d_name, mthd_t.params.toParamList(true).join(", "));
                 this.beginBlock();
-                    this.writeln("__gshared GDExtensionMethodBindPtr __bind;");
-                    this.writeln("if (!__bind)");
-                    this.indent(4);
-                        this.writefln("__bind = gde_get_method_bind!(typeof(this))(\"%s\", %s);", mthd_t.name, mthd_t.hash);
-                    this.unindent();
                     if (mthd_t.params.length > 0)
-                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind, %s);", mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
+                        this.writefln("return gde_bptrcall_method!(typeof(this), \"%s\", %s, %s)(ptr, %s);", mthd_t.name, mthd_t.hash, mthd_t.returnType.d_full_name, mthd_t.params.toParamNames.join(", "));
                     else
-                        this.writefln("return gde_ptrcall!(%s)(ptr, __bind);", mthd_t.returnType.d_full_name);
+                        this.writefln("return gde_bptrcall_method!(typeof(this), \"%s\", %s, %s)(ptr);", mthd_t.name, mthd_t.hash, mthd_t.returnType.d_full_name);
                 this.endBlock();
             }
             return;
