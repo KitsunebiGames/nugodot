@@ -20,7 +20,7 @@ nugodot is built around a mixin called `GodotClass`, to register classes with go
 ### Example
 ```d
 import godot;
-import godot.node_2d;
+import godot.node2d;
 
 class MyClass : Node2D {
 protected:
