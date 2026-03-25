@@ -61,6 +61,8 @@ void gd_delete(T)(ref T value) @trusted @nogc {
 
         static if (is(T == Variant))
             variant_destroy(p_value);
+        else static if(is(T == String))
+            string_destroy(p_value);
         else static if(is(T == StringName))
             string_name_destroy(p_value);
         else static if(is(T == NodePath))
@@ -69,31 +71,31 @@ void gd_delete(T)(ref T value) @trusted @nogc {
             rid_destroy(p_value);
         else static if(is(T == Callable))
             callable_destroy(p_value);
-        else static if(is(T == Signal))
+        else static if(is(T == Signal!U, U...))
             signal_destroy(p_value);
         else static if(is(T == Dictionary!U, U...))
-            signal_destroy(p_value);
+            dictionary_destroy(p_value);
         else static if(is(T == Array!U, U...))
             array_destroy(p_value);
-        else static if(is(T == PackedByteArray))
+        else static if(is(T == PackedArray!ubyte) || is(T == PackedArray!byte))
             packed_byte_array_destroy(p_value);
-        else static if(is(T == PackedInt32Array))
+        else static if(is(T == PackedArray!uint) || is(T == PackedArray!int))
             packed_int32_array_destroy(p_value);
-        else static if(is(T == PackedInt64Array))
+        else static if(is(T == PackedArray!ulong) || is(T == PackedArray!long))
             packed_int64_array_destroy(p_value);
-        else static if(is(T == PackedFloat32Array))
+        else static if(is(T == PackedArray!float))
             packed_float32_array_destroy(p_value);
-        else static if(is(T == PackedFloat64Array))
+        else static if(is(T == PackedArray!double))
             packed_float64_array_destroy(p_value);
-        else static if(is(T == PackedVector2Array))
+        else static if(is(T == PackedArray!Vector2))
             packed_vector2_array_destroy(p_value);
-        else static if(is(T == PackedVector3Array))
+        else static if(is(T == PackedArray!Vector3))
             packed_vector3_array_destroy(p_value);
-        else static if(is(T == PackedVector4Array))
+        else static if(is(T == PackedArray!Vector4))
             packed_vector4_array_destroy(p_value);
-        else static if(is(T == PackedColorArray))
+        else static if(is(T == PackedArray!Color))
             packed_color_array_destroy(p_value);
-        else static if(is(T == PackedStringArray))
+        else static if(is(T == PackedArray!String))
             packed_string_array_destroy(p_value);
 
         static if (isPointer!T)

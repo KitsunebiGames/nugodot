@@ -31,6 +31,17 @@ private:
 @nogc:
     void[VARIANT_SIZE_VARIANT] data_;
 
+    // Helper that sets the type of the array.
+    void setTyped() {
+        static if (is(T : GDEObject)) {
+
+            auto p_classname = StringName(classNameOf!T);
+            array_set_typed(&this, variantTypeOf!T, &p_classname, null);
+        } else static if (!is(T == Variant)) {
+            array_set_typed(&this, variantTypeOf!T, null, null);
+        }
+    }
+
 public:
 
     /**
@@ -39,20 +50,24 @@ public:
     enum Type = GDEXTENSION_VARIANT_TYPE_ARRAY;
 
     /**
-        Makes a new instance of the given array type.
+        Gets whether this TypedArray is compatible with a given PackedArray
     */
-    static typeof(this) makeNew() {
-        typeof(this) p_arr;
-        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 0)(&p_arr);
-        static if (!is(T == Variant)) {
-            static if (is(T : GDEObject)) {
-                auto p_classVARIANT_TYPE = StringName(classNameOf!T);
-                array_set_typed(&p_arr, variantTypeOf!T, &p_classVARIANT_TYPE, null);
-            } else {
-                array_set_typed(&p_arr, variantTypeOf!T, null, null);
-            }
-        }
-        return p_arr;
+    template isCompatibleWithPacked(U) {
+        enum isCompatibleWithPacked = isPackedArray!U && ((PackedArrayType!T == U.Type) || is(T == Variant));
+    }
+
+    /**
+        Gets whether 2 TypedArrays are compatible.
+    */
+    template isCompatibleWithArray(U) {
+        enum isCompatibleWithArray = is(Y == TypedArray!Y, Y...) && (is(U == typeof(this)) || is(T == Variant));
+    }
+
+    /**
+        Gets whether the given type is compatible with this array.
+    */
+    template isCompatibleWithType(U) {
+        enum isCompatibleWithType = is(T == Variant) || is(T == U);
     }
 
     /**
@@ -103,6 +118,60 @@ public:
     }
 
     /**
+        Makes a new instance of the given array type.
+    */
+    static typeof(this) makeNew() {
+        return typeof(this)(0);
+    }
+
+    /**
+        Creates a new array with elements pre-reserved.
+
+        Params:
+            reserved = The amoutn of elements to reserve.
+    */
+    this(size_t reserved) {
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 0)(&this);
+        this.setTyped();
+        if (reserved > 0)
+            this.resize(reserved);
+    }
+
+    /**
+        Constructs a new array from a packed array.
+
+        Params:
+            from = The packed byte array to create the array from.
+    */
+    this(U)(auto ref U from) 
+    if (!isPackedArray!T && isCompatibleWithPacked!U) {
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_BYTE_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 3)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_INT32_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 4)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 5)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT32_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 6)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT64_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 7)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_STRING_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 8)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 9)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR3_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 10)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR4_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 12)(&this, &from);
+        static if(U.Type == GDEXTENSION_VARIANT_TYPE_PACKED_COLOR_ARRAY)
+            gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_ARRAY, 11)(&this, &from);
+        else
+            static assert(0, "Invalid packed array type?!");
+
+        this.setTyped();
+    }
+
+    /**
         Constructs an array from a variant.
 
         Params:
@@ -126,10 +195,45 @@ public:
     }
 
     /**
-        Clears the array.
+        Assigns the data of this array to the data of another.
+
+        Params:
+            other = The array to assign from.
     */
-    void clear() {
-        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "clear", 3218959716)(&this);
+    void assign(U)(auto ref Y other)
+    if (isCompatibleWithArray!Y) {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "assign", 2307260970)(&this, other);
+    }
+
+    /**
+        Reverses the array.
+    */
+    void reverse() {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "reverse", 3218959716)(&this);
+    }
+
+    /**
+        Shuffles the array.
+    */
+    void shuffle() {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "shuffle", 3218959716)(&this);
+    }
+
+    /**
+        Sorts the array.
+    */
+    void sort() {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "sort", 3218959716)(&this);
+    }
+
+    /**
+        Sorts the array using the given callable.
+
+        Params:
+            callable = The callable to invoke to determine whether to swap 2 elements.
+    */
+    void sort(Callable callable) {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "sort_custom", 3470848906)(&this, callable);
     }
 
     /**
@@ -143,6 +247,46 @@ public:
     }
 
     /**
+        Clears the array.
+    */
+    void clear() {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "clear", 3218959716)(&this);
+    }
+
+    /**
+        Pops the element at the given index, removing it from the array.
+
+        Params:
+            index = The index to pop
+        
+        Returns:
+            The value at that index.
+    */
+    T popAt(size_t index) {
+        return gde_unwrap!T(gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "pop_at", 3518259424, Variant)(&this, cast(GDExtensionInt)index));
+    }
+
+    /**
+        Pops the first element of the array.
+
+        Returns:
+            The value that was at the front.
+    */
+    T popFront() {
+        return gde_unwrap!T(gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "pop_front", 1321915136, Variant)(&this));
+    }
+
+    /**
+        Pops the last element of the array.
+
+        Returns:
+            The value that was at the back.
+    */
+    T popBack() {
+        return gde_unwrap!T(gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "pop_back", 1321915136, Variant)(&this));
+    }
+
+    /**
         Removes an element from the array at the given index.
 
         Params:
@@ -153,12 +297,23 @@ public:
     }
 
     /**
+        Removes the given value from the array.
+
+        Params:
+            value = The value to remove all instances of from the array.
+    */
+    void erase(T value) {
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "erase", 3316032543)(&this, gde_wrap(value));
+    }
+
+    /**
         Fills the array with the given value.
 
         Params:
             value = The value to fill the array with.
     */
-    void fill()(auto ref T value) {
+    void fill(U)(auto ref U value)
+    if (isCompatibleWithType!U) {
         static if (is(T == Variant)) {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "fill", 3316032543)(&this, value);
         } else {
@@ -172,7 +327,8 @@ public:
         Params:
             value = The value to push.
     */
-    void pushFront()(auto ref T value) {
+    void pushFront(U)(auto ref U value)
+    if (isCompatibleWithType!U) {
         static if (is(T == Variant)) {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_front", 3316032543)(&this, value);
         } else {
@@ -186,8 +342,11 @@ public:
         Params:
             value = The value to push.
     */
-    void pushFront()(auto ref T value) {
-        static if (is(T == Variant)) {
+    void pushBack(U)(auto ref U value)
+    if (isCompatibleWithArray!U || isCompatibleWithType!U) {
+        static if (isCompatibleWithArray!U) {
+            gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append_array", 2307260970)(&this, value);
+        } else static if (is(T == Variant)) {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_back", 3316032543)(&this, value);
         } else {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "push_back", 3316032543)(&this, gde_wrap!T(value));
@@ -201,7 +360,8 @@ public:
             value = The value to insert.
             at =    The position to insert it.
     */
-    void insert()(auto ref T value, ptrdiff_t at) {
+    void insert(U)(auto ref U value, ptrdiff_t at)
+    if (isCompatibleWithType!U) {
         static if (is(T == Variant)) {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "insert", 3176316662)(&this, cast(GDExtensionInt)at, value);
         } else {
@@ -260,14 +420,15 @@ public:
             value = The value to set at the given index.
             index = The index to fetch the element from.
     */
-    void opIndexAssign()(auto ref T value, size_t index) {
-        static if (is(T == Variant)) {
+    void opIndexAssign(U)(auto ref U value, size_t index)
+    if (isCompatibleWithType!U) {
+        static if (is(T == Variant) && is(U == Variant)) {
             if (auto p_variant = cast(Variant*)array_operator_index(&this, index)) {
                 *p_variant = value;
             }
         } else {
             if (auto p_variant = cast(Variant*)array_operator_index(&this, index)) {
-                *p_variant = gde_wrap!T(value);
+                *p_variant = gde_wrap!U(value);
             }
         }
     }
@@ -278,8 +439,9 @@ public:
         Params:
             value = The value to append, can be another array of compatible type.
     */
-    void opOpAssign(string op="~", T)(auto ref T value) {
-        static if (is(T == typeof(this)) || (is(typeof(this) == TypedArray!Variant) && is(T == TypedArray!U, U))) {
+    void opOpAssign(string op="~", U)(auto ref U value)
+    if (isCompatibleWithType!U || isCompatibleWithArray!U) {
+        static if (isCompatibleWithArray!U) {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append_array", 2307260970)(&this, value);
         } else static if (is(T == Variant)) {
             gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_ARRAY, "append", 3316032543)(&this, value);
@@ -423,6 +585,20 @@ public:
         Writable pointer to the data stored in the packed array.
     */
     @property const(T)* ptr() => cast(const(T)*)ptr_idx_func(&this, 0);
+
+    /**
+        Constructs a new packed array with a given amount of elements
+        reserved.
+
+        Params:
+            reserved = The amount of elements to reserve.
+    */
+    this(size_t reserved) {
+        gde_bcall_ctor!(VARIANT_TYPE, 0)(&this);
+        if (reserved > 0) {
+            this.resize(reserved);
+        }
+    }
 
     /**
         Constructs a new packed array from a D slice.

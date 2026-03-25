@@ -128,6 +128,48 @@ template isVariant(T) {
 }
 
 /**
+    Gets whether the given type is a packed array.
+
+    Params:
+        T = The type to query.
+*/
+template isPackedArray(T) {
+    import godot.variant;
+
+    enum isPackedArray = is(T == PackedArray!U, U...);
+}
+
+/**
+    Gets the PackedArray type for a given type T.
+*/
+template PackedArrayType(T) {
+    import godot.variant;
+
+    static if (is(T == ubyte) || is(T == byte))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_BYTE_ARRAY;
+    else static if (is(T == uint) || is(T == int))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_INT32_ARRAY;
+    else static if (is(T == ulong) || is(T == long))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY;
+    else static if (is(T == float))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT32_ARRAY;
+    else static if (is(T == double))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_FLOAT64_ARRAY;
+    else static if (is(T == String))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_STRING_ARRAY;
+    else static if (is(T == Vector2))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY;
+    else static if (is(T == Vector3))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR3_ARRAY;
+    else static if (is(T == Vector4))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR4_ARRAY;
+    else static if (is(T == Color))
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_PACKED_COLOR_ARRAY;
+    else 
+        enum PackedArrayType = GDEXTENSION_VARIANT_TYPE_NIL;
+}
+
+/**
     Gets the variant type tag of the given D type.
 
     Params:
