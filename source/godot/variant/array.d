@@ -34,12 +34,13 @@ private:
     // Helper that sets the type of the array.
     void setTyped() {
         static if (is(T : GDEObject)) {
-
-            auto p_classname = StringName(classNameOf!T);
-            array_set_typed(&this, variantTypeOf!T, &p_classname, null);
-        } else static if (!is(T == Variant)) {
-            array_set_typed(&this, variantTypeOf!T, null, null);
+            StringName p_classname = StringName(classNameOf!T);
+        } else {
+            StringName p_classname;
         }
+        
+        Variant p_script;
+        array_set_typed(&this, variantTypeOf!T, &p_classname, &p_script);
     }
 
 public:

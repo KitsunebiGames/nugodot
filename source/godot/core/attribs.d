@@ -51,3 +51,9 @@ struct gd_export_mutliline { string hints; }
     hint and hint string.
 */
 struct gd_export_custom { PropertyHint hint; string hintString; PropertyUsageFlags flags; }
+
+/**
+    Marks a class as non-instantiable, telling nugodot not to try
+    to generate an extension class for it.
+*/
+struct gd_non_instantiable;

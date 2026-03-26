@@ -10,6 +10,7 @@
 module godot.core.object;
 import godot.core.gdextension;
 import godot.core.lifetime;
+import godot.core.attribs;
 import godot.core.traits;
 import godot.core.wrap;
 import godot.core;
@@ -166,8 +167,16 @@ if (is(T : GDEObject)) {
     static if (is(T PT == super)) {
         static if (!__traits(isAbstractClass, T)) {
 
-            // Construct the super class
-            void* p_object = gde_class_construct(classNameOf!PT);
+            static if (is(isGodotNativeClass!T)) {
+
+                // Construct the native class
+                void* p_object = gde_class_construct(classNameOf!T);
+
+            } else {
+
+                // Construct the super class
+                void* p_object = gde_class_construct(classNameOf!PT);
+            }
 
             // Construct the class instance.
             T p_instance = gde_class_alloc_empty!T();
@@ -242,8 +251,8 @@ T gde_class_bind_singleton(T)(GDExtensionObjectPtr ptr) @system @nogc
 if (is(T : GDEObject)) {
     import godot.variant : Signal;
     
-    T p_instance = gde_class_alloc_empty!T();;
-    gde_class_assign!(T, true)(ptr, p_instance);
+    T p_instance = gde_class_alloc_empty!T();
+    gde_class_assign!T(ptr, p_instance);
     gde_class_bind_signals(p_instance);
     return p_instance;
 }
@@ -284,12 +293,10 @@ T gde_class_get(T)(inout(GDExtensionObjectPtr) p_object) @system @nogc {
         return cast(T)p_binding;
 
     // 3. Try with native godot callbacks
-    static if (isGodotNativeClass!T) {
-        if (auto p_binding = object_get_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, &__nu_gde_instance_callbacks!T))
-            return cast(T)p_binding;
-    }
+    if (auto p_binding = object_get_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, &__nu_gde_instance_callbacks!T))
+        return cast(T)p_binding;
     
-    // 3. No bindings.
+    // 4. No bindings.
     return null;
 }
 
@@ -317,15 +324,13 @@ T gde_class_get_or_bind(T)(inout(GDExtensionObjectPtr) p_object) @system @nogc {
         p_object =      The object instance
         p_instance =    The instance to assign to the class.
 */
-void gde_class_assign(T, bool singleton = false)(inout(GDExtensionObjectPtr) p_object, T p_instance) @system @nogc {
-
+void gde_class_assign(T)(inout(GDExtensionObjectPtr) p_object, T p_instance) @system @nogc {
     // Refer to our D object in the Godot instance.
-    static if (!singleton) {
-        StringName* p_classname = gde_make_string_name(classNameOf!T);
+    StringName* p_classname = gde_make_string_name(classNameOf!T);
+    static if (!isGodotNativeClass!T)
         object_set_instance(cast(GDExtensionObjectPtr)p_object, p_classname, cast(void*)p_instance);
-        object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
-        gde_free_string_name(p_classname);
-    }
+    object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
+    gde_free_string_name(p_classname);
 
     // Refer back to our object in our bound instance.
     (cast(GDEObject)p_instance).ptr_ = cast(GDExtensionObjectPtr)p_object;

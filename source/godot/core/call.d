@@ -102,25 +102,85 @@ RetT gde_varcall(RetT = void, Args...)(GDExtensionTypePtr obj, GDExtensionMethod
         p_args =    The godot parameters to pass to the function.
         r_ret =     The place that the return value should be stored.
 */
-void gde_dcall(ClassT, alias method)(ClassT p_object, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc {
-    alias Params = parametersOf!method;
-    alias RetT = returnTypeOf!method;
+void gde_dcall(T, alias method)(T p_object, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret) @nogc
+if (is(T == class)) {
+    auto fn = gde_get_func_instance!(T, method)();
+    gde_dcall!(typeof(fn), T)(fn, p_args, r_ret, p_object);
+}
+
+/**
+    Calls a D function using ptrcall arguments.
+
+    Params:
+        p_func =    The function to call.
+        p_args =    The godot parameters to pass to the function.
+        r_ret =     The place that the return value should be stored.
+        p_dargs =   D arguments to pass along.
+*/
+pragma(inline, true)
+void gde_dcall(T, Args...)(T p_func, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_ret, Args p_dargs) @nogc
+if (is(T == return)) {
+    alias Params = parametersOf!(p_func)[Args.length..$];
+    alias RetT = returnTypeOf!p_func;
 
     Params p_params;
     static foreach(i; 0..Params.length) {
         gde_from_ptr(p_args[i], p_params[i]);
     }
 
-    import core.stdc.stdio : printf;
-
-    auto fn = gde_get_func_instance!(ClassT, method)();
     static if (!is(RetT == void)) {
 
-        auto d_return = fn(p_object, p_params);
+        auto d_return = p_func(p_dargs, p_params);
         gde_to_ptr(d_return, r_ret);
     } else {
         
-        fn(p_object, p_params);
+        p_func(p_dargs, p_params);
+    }
+}
+
+/**
+    Calls a D function using varcall arguments.
+
+    Params:
+        p_func =        The function to call.
+        p_args =        The godot parameters to pass to the function.
+        p_argcount =    The amount of parameters passed from godot.
+        r_ret =         The place that the return value should be stored.
+        r_error =       The place to store error information.
+        p_dargs =       D arguments to pass along.
+*/
+pragma(inline, true)
+void gde_dvarcall(T, Args...)(T p_func, const(GDExtensionVariantPtr)* p_args, GDExtensionInt p_argcount, GDExtensionVariantPtr r_ret, GDExtensionCallError* r_error, Args p_dargs) @nogc
+if (is(T == function)) {
+    alias Params = parametersOf!(p_func)[Args.length..$];
+    alias RetT = returnTypeOf!p_func;
+
+    // Too few arguments.
+    if (p_argcount < Params.length) {
+        r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+        r_error.expected = Params.length;
+        return;
+    }
+
+    // Too many arguments.
+    if (p_argcount > Params.length) {
+        r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+        r_error.expected = Params.length;
+        return;
+    }
+
+    Params p_params;
+    static foreach(i; 0..Params.length) {
+        gde_from_varptr(p_args[i], p_params[i]);
+    }
+
+    static if (!is(RetT == void)) {
+
+        auto d_return = p_func(p_dargs, p_params);
+        gde_to_varptr(d_return, r_ret);
+    } else {
+        
+        fn(p_dargs, p_params);
     }
 }
 
@@ -232,6 +292,20 @@ RetT gde_bcall_builtin(GDExtensionVariantType type, string name, uint hash, RetT
 pragma(inline, true)
 void gde_bcall_ctor(GDExtensionVariantType type, int ctor, Args...)(GDExtensionTypePtr p_variant, Args args) @nogc nothrow {
     gde_ctorcall!(Args)(p_variant, gde_get_ctor!(type, ctor)(), args);
+}
+
+/***
+    Calls a constructor on the given variant type.
+
+    This internally wraps and caches the constructor for you.
+
+    Params:
+        p_variant = The type to construct.
+        args =      Arguments to pass to the type's constructor.
+*/
+pragma(inline, true)
+void gde_bcall_ctor(T, int ctor, Args...)(GDExtensionTypePtr p_variant, Args args) @nogc nothrow {
+    gde_ctorcall!(Args)(p_variant, gde_get_ctor!(variantTypeOf!T, ctor)(), args);
 }
 
 /***

@@ -93,8 +93,8 @@ GDExtensionMethodBindPtr gde_get_method_bind(T, string name, uint hash)() @nogc 
         auto p_classname = gde_make_string_name(classNameOf!T);
         auto p_methodname = gde_make_string_name(name);
         p_bind = classdb_get_method_bind(p_classname, p_methodname, hash);
-        gde_free_string_name(p_classname);
-        gde_free_string_name(p_methodname);
+        // gde_free_string_name(p_classname);
+        // gde_free_string_name(p_methodname);
     }
     
     return p_bind;
@@ -262,6 +262,49 @@ GDExtensionClassMethodCall gde_wrap_varcall(T, alias method)() @nogc {
     };
     
     return fn;
+}
+
+/**
+    Wraps a D function in a Godot callable.
+
+    Params:
+        p_callable =    The callable to set.
+        p_func =        The D function or delegate to call.
+
+    Note:
+        This **breaks** D's type system by pretending all delegates
+        are nogc compatible function pointers, be aware this may cause
+        crashes for contexts that can't be allocated.
+*/
+void gde_wrap_d_function(T)(GDExtensionUninitializedTypePtr p_callable, T func) @nogc nothrow
+if (is(T == return)) {
+    static if (is(T == function)) {
+        GDExtensionCallableCustomInfo2 p_info = GDExtensionCallableCustomInfo2(
+            callable_userdata: cast(void*)func,
+            token: __godot_class_library,
+            call_func: cast(GDExtensionCallableCustomCall)(void* p_userdata, const(GDExtensionConstVariantPtr)* p_args, GDExtensionInt p_argcount, GDExtensionVariantPtr r_return, GDExtensionCallError* r_error) {
+                T func = cast(T)p_userdata;
+                gde_dvarcall(func, p_args, p_argcount, r_return, r_error);
+            }
+        );
+
+        callable_custom_create2(p_callable, p_info);
+    } else static if (is(T == delegate)) {
+        GDExtensionCallableCustomInfo2 p_info = GDExtensionCallableCustomInfo2(
+            callable_userdata: cast(void*)func,
+            token: __godot_class_library,
+            call_func: cast(GDExtensionCallableCustomCall)(void* p_userdata, const(GDExtensionConstVariantPtr)* p_args, GDExtensionInt p_argcount, GDExtensionVariantPtr r_return, GDExtensionCallError* r_error) {
+                alias d_functype = typeof((cast(T)p_userdata).funcptr);
+                alias t_functype = returnTypeOf!d_functype function(parametersOf!d_functype) @nogc nothrow;
+                
+                auto fn = cast(t_functype)((cast(T)p_userdata).funcptr);
+                auto ctx = (cast(T)p_userdata).ptr;
+                gde_dvarcall(fn, p_args, p_argcount, r_return, r_error, ctx);
+            }
+        );
+
+        callable_custom_create2(p_callable, p_info);
+    }
 }
 
 /**

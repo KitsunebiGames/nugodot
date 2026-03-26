@@ -12,9 +12,7 @@ import godot.core.gdextension.variant_size;
 import godot.core.wrap;
 import godot.core.traits;
 import godot.core.object;
-import godot.variant.array;
-import godot.variant.callable;
-import godot.variant.string;
+import godot.variant;
 
 /**
     A godot signal
@@ -25,6 +23,11 @@ private:
     void[VARIANT_SIZE_SIGNAL] data_;
 
 public:
+
+    /**
+        The type of the variant.
+    */
+    enum Type = GDEXTENSION_VARIANT_TYPE_SIGNAL;
 
     /// Type of arguments to the signal.
     alias ArgsT = Args;
@@ -54,10 +57,10 @@ public:
 
         Params:
             object = The owning object
-            signal = The name of the signal.
+            p_name = The name of the signal.
     */
-    this(GDEObject object, StringName signal) {
-        gde_bcall_ctor!(typeof(this), 2)(&this, object.ptr, &signal);
+    this(GDEObject object, StringName* p_name) {
+        gde_bcall_ctor!(typeof(this), 2)(&this, object.ptr, p_name);
     }
 
     /**
@@ -142,19 +145,7 @@ public:
             args = The arguments to pass to the signal
     */
     void emit(Args args) {
-        __gshared GDExtensionPtrBuiltInMethod __bind;
-        if (!__bind)
-            __bind = gde_get_builtin_method(GDEXTENSION_VARIANT_TYPE_SIGNAL, "emit", 3286317445);
-        
-        void*[Args.length] __params;
-        static foreach_reverse(i, arg; args) {
-            static if (is(typeof(param) : GDEObject))
-                __params[i] = arg.ptr;
-            else
-                __params[i] = &arg;
-        }
-
-        __bind(&this, __params.ptr, null, cast(int)Args.length);
+        gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_SIGNAL, "emit", 3286317445)(&this, args);
     }
 
     /**

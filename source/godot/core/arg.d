@@ -117,7 +117,6 @@ void gde_to_varptr(T)(ref T source, inout(GDExtensionVariantPtr) target) @nogc {
         // Variant
         variant_new_copy(cast(GDExtensionVariantPtr)target, &source);
     } else static if (is(T : GDEObject)) {
-        import godot.ref_counted : RefCounted;
 
         // Objects
         if (source) {
@@ -236,6 +235,7 @@ void gde_to_ptr(T)(ref T source, ref inout(GDExtensionTypePtr) target) @nogc {
 
         // Objects
         if (source) {
+            
             gde_blit(target, source.ptr);
         }
     } else {
@@ -503,7 +503,7 @@ GDExtensionTypePtr gde_ptrof(T)(ref return scope T value) @nogc {
     The storage type for a given type.
 */
 template storageOf(T) {
-    static if (is(T == GDEObject))
+    static if (is(T : GDEObject))
         alias storageOf = GDExtensionObjectPtr;
     else
         alias storageOf = T;
@@ -525,7 +525,7 @@ template PStackVar(Args...) {
                 Largest = Select!(U.sizeof > Largest.sizeof, U, Largest);
         }
 
-        enum PSize = Largest!(Args).sizeof;
+        enum PSize = Largest!(Args, void*).sizeof;
     }
 
     static if (Args.length > 0)

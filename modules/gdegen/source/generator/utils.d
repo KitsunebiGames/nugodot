@@ -24,6 +24,27 @@ string[] toParamList(GDEFuncParam[] params, bool useNames) {
     }
     return result;
 }
+/**
+    Gets a parameter list from a slice of GDEFuncParam
+    parameters.
+
+    Params:
+        params =    The parameter list.
+        useNames =  Whether names should be added to the list.
+    
+    Returns:
+        An array of parameters formatted as D parameters.
+*/
+string[] toParamList(GDEMethodParam[] params, bool useNames) {
+    string[] result;
+    foreach(param; params) {
+        if (useNames && param.d_full_name)
+            result ~= "%s %s".format(param.type.d_full_name, param.name);
+        else
+            result ~= param.type.d_full_name;
+    }
+    return result;
+}
 
 /**
     Gets a list of the names of the parameters of a function.
@@ -35,6 +56,28 @@ string[] toParamList(GDEFuncParam[] params, bool useNames) {
         An array of parameter names.
 */
 string[] toParamNames(GDEFuncParam[] params) {
+    import std.conv : text;
+
+    string[] result;
+    foreach(i, param; params) {
+        if (param.name)
+            result ~= param.name;
+        else
+            result ~= "param"~i.text;
+    }
+    return result;
+}
+
+/**
+    Gets a list of the names of the parameters of a function.
+
+    Params:
+        params =    The parameter list.
+    
+    Returns:
+        An array of parameter names.
+*/
+string[] toParamNames(GDEMethodParam[] params) {
     import std.conv : text;
 
     string[] result;
@@ -112,6 +155,38 @@ string toCamelCase(string text) {
             if (i != 0)
                 upper = true;
             
+            continue;
+        }
+
+        result ~= upper ? toUpper(c) : c;
+        upper = false;
+    }
+
+    return result;
+}
+
+/**
+    Converts snake_case to camelCase.
+
+    Params:
+        text = The text to convert.
+    
+    Returns:
+        The text as camel case.
+*/
+string toPascalCase(string text) {
+    import std.string : toUpper;
+    string result;
+    
+    bool upper;
+    foreach(i, c; text) {
+        if (i == 0) {
+            result ~= toUpper(c);
+            continue;
+        }
+
+        if (c == '_') {        
+            upper = true;
             continue;
         }
 

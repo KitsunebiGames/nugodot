@@ -47,6 +47,17 @@ public:
     }
     
     /**
+        Creates a new callable from a D function.
+
+        Params:
+            func = The function to call.
+    */
+    this(T)(T func)
+    if (is(T == return)) {
+        gde_wrap_d_function(&this, func);
+    }
+
+    /**
         Calls the callable with the given arguments.
     */
     RetT call(RetT, Args...)(Args args) {

@@ -425,7 +425,12 @@ public:
 
         // Bound signals
         if (auto signal_t = cast(GDESignal)type) {
-            // TODO
+
+            this.writef("@gd_name(\"%s\") ", signal_t.name);
+            this.writenls();
+            this.writeDDOC(signal_t.ddoc);
+            this.writefln("Signal!(%s) %s;", signal_t.params.toParamList(false).join(", "), signal_t.d_full_name);
+            return;
         }
         
         // Bound class methods
@@ -550,6 +555,10 @@ public:
                 this.writefln("@class_name(\"%s\")", class_t.name);
             }
 
+            if (!class_t.isInstantiable) {
+                this.writefln("@gd_non_instantiable");
+            }
+
             this.writef("class %s : %s ", class_t.d_full_name, class_t.inherits ? class_t.inherits.d_full_name : "GDEObject");
             this.beginBlock();
             if (p_class_protected) {
@@ -584,15 +593,20 @@ public:
                 this.writeType(enum_t);
             }
             
-            // Write methods
-            foreach(method_t; class_t.methods) {
-                if (!method_t.isProtected)
-                    this.writeType(method_t);
+            // Write signals
+            foreach(signal_t; class_t.signals) {
+                this.writeType(signal_t);
             }
             
             // Write properties
             foreach(prop_t; class_t.properties) {
                 this.writeType(prop_t);
+            }
+            
+            // Write methods
+            foreach(method_t; class_t.methods) {
+                if (!method_t.isProtected)
+                    this.writeType(method_t);
             }
 
             this.endBlock();

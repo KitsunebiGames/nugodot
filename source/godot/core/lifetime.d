@@ -9,6 +9,7 @@
 */
 module godot.core.lifetime;
 import godot.core.gdextension;
+import godot.core.attribs;
 import godot.core.object;
 import godot.core.traits;
 import godot.variant;
@@ -29,6 +30,7 @@ import godot.ref_counted;
 */
 Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
     static if (is(T : GDEObject)) {
+        static assert(!hasUDA!(T, gd_non_instantiable), T.stringof~" is not instantiable!");
         return gde_alloc_class!T();
     } else {
         Ref!T mem = cast(Ref!T)nu_malloc(AllocSize!T, true);
@@ -45,7 +47,7 @@ Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
 */
 void gd_delete(T)(ref T value) @trusted @nogc {
     import numem.core.hooks : nu_free;
-    
+
     static if (is(T : GDEObject)) {
         if (value) {
             static if(is(typeof(T.__xdtor)))

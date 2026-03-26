@@ -1468,16 +1468,6 @@ public:
         
         return_ = rTypeName_ ? GDEType.fromGodotType(rTypeName_, registry) : registry.basicType("void");
     }
-
-    /**
-        Gets a string representation of the type.
-    */
-    override
-    string toString() { // @suppress(dscanner.suspicious.object_const)
-
-        import std.format;
-        return "(func %s (%s) %s)".format(name, params_.strJoin(", "), return_.toString());
-    }
 }
 
 /**
@@ -1568,7 +1558,7 @@ public:
 /**
     A class method.
 */
-class GDEMethod : GDEFunc {
+class GDEMethod : GDEType {
 private:
     GDEClass parent_;
     bool isProtected_;
@@ -1579,7 +1569,21 @@ private:
     bool isVirtual_;
     long hash_;
 
+    string rTypeName_;
+    GDEType return_;
+    GDEMethodParam[] params_;
+
 public:
+
+    /**
+        The type of the return value.
+    */
+    @property GDEType returnType() => return_;
+
+    /**
+        The parameters of the function.
+    */
+    @property GDEMethodParam[] params() => params_;
 
     /**
         Name of the property as a valid D identifier.
@@ -1655,7 +1659,16 @@ public:
         switch(schema) {
             case API_SCHEMA:
             case INTERFACE_SCHEMA:
-                super.parse(json, schema, registry);
+                this.name = json["name"].str;
+                if ("arguments" in json) {
+                    foreach(mjson; json["arguments"].array) {
+                        auto param = new GDEMethodParam();
+                        param.parse(mjson, schema, registry);
+                        this.params_ ~= param;
+                    }
+                }
+
+                this.rTypeName_ = "return_value" in json ? json["return_value"]["type"].str : null;
                 this.isConst_ = json["is_const"].boolean;
                 this.isStatic_ = json["is_static"].boolean;
                 this.isRequired_ = "is_required" in json && json["is_required"].boolean;
@@ -1678,24 +1691,201 @@ public:
     */
     override
     void finalize(GDETypeRegistry registry) {
-        super.finalize(registry);
+        switch(rTypeName_) {
+            case "int":
+                return_ = registry.basicType("GDExtensionInt");
+                break;
+
+            case "float":
+                return_ = registry.basicType("double");
+                break;
+
+            default:
+                return_ = rTypeName_ ? GDEType.fromGodotType(rTypeName_, registry) : registry.basicType("void");
+                break;   
+        }
+
+        foreach(param; params_) {
+            param.finalize(registry);
+            this.parent_.use(param.type);
+        }
 
         if (return_)
             this.parent_.use(return_);
+    }
+}
 
-        foreach(param; params_)
-            this.parent_.use(param.type);
+/**
+    A method parameter.
+*/
+class GDEMethodParam : GDEMember {
+private:
+    string typeName_;
+    GDEType type_;
+    string value_;
+    string meta_;
+
+public:
+
+    /**
+        Type of the parameter.
+    */
+    override @property GDEType type() => type_;
+
+    /**
+        Default value of the parameter, can be empty.
+    */
+    @property string value() => value_;
+
+    /**
+        Meta-type of parameter.
+    */
+    @property string meta() => meta_;
+
+    /**
+        Constructor.
+    */
+    this() { }
+
+    /**
+        Constructor.
+    */
+    this(string name, GDEType type) {
+        this.name = name;
+        this.type_ = type;
+    }
+
+    /**
+        Parses the type.
+    
+        Params:
+            json =      The JSON value to parse.
+            schema =    The schema being parsed.
+            registry =  The type registry.
+    */
+    override
+    void parse(ref JSONValue json, int schema, ref GDETypeRegistry registry) {
+        switch(schema) {
+            case INTERFACE_SCHEMA:
+            case API_SCHEMA:
+                if ("name" in json)
+                    this.name = json["name"].str.filterReserved();
+                
+                if ("type" in json)
+                    this.typeName_ = json["type"].str;
+                return;
+
+            default:
+                return;
+        }
+    }
+
+    /**
+        Finalizes the type.
+
+        Params:
+            registry =  The type registry.
+    */
+    override
+    void finalize(GDETypeRegistry registry) {
+        switch(typeName_) {
+            case "float":
+                this.type_ = registry.basicType("double");
+                return;
+            
+            case "int":
+                this.type_ = registry.basicType("long");
+                return;
+            
+            default:
+        
+                // If a param has no type name (wasn't parsed)
+                // then it's probably void.
+                if (!typeName_) {
+                    this.type_ = registry.basicType("void");
+                    return;
+                }
+
+                this.type_ = GDEType.fromGodotType(typeName_, registry);
+                return;
+        }
     }
 }
 
 /**
     A signal.
 */
-class GDESignal : GDEFunc {
+class GDESignal : GDEType {
 private:
+    GDEClass parent_;
+    GDEMethodParam[] params_;
 
 public:
 
+    /**
+        Parent class of the method.
+    */
+    @property GDEClass parent() => parent_;
+
+    /**
+        The parameters of the function.
+    */
+    @property GDEMethodParam[] params() => params_;
+
+    /**
+        Name of the property as a valid D identifier.
+    */
+    override @property string d_name() => "on"~this.name.toPascalCase;
+
+    /**
+        Instantiates a new method.
+    */
+    this(GDEClass parent) {
+        this.parent_ = parent;
+    }
+
+    /**
+        Parses the type.
+    
+        Params:
+            json =      The JSON value to parse.
+            schema =    The schema being parsed.
+            registry =  The type registry.
+    */
+    override
+    void parse(ref JSONValue json, int schema, ref GDETypeRegistry registry) {
+        this.ddoc_ = parseDocs(json);
+
+        switch(schema) {
+            case API_SCHEMA:
+                this.name = json["name"].str;
+                if ("arguments" in json) {
+                    foreach(mjson; json["arguments"].array) {
+                        auto param = new GDEMethodParam();
+                        param.parse(mjson, schema, registry);
+                        this.params_ ~= param;
+                    }
+                }
+                return;
+
+            default:
+                return;
+        }
+    }
+
+    /**
+        Finalizes the type.
+
+        Params:
+            registry =  The type registry.
+    */
+    override
+    void finalize(GDETypeRegistry registry) {
+        foreach(param; params_) {
+            param.finalize(registry);
+            this.parent_.use(param.type);
+        }
+    }
 }
 
 /**
@@ -2093,9 +2283,11 @@ public:
                 
                 if ("signals" in json) {
                     foreach(signal_t; json["signals"].array) {
-                        auto signal_ = new GDESignal();
+                        auto signal_ = new GDESignal(this);
                         signal_.parse(signal_t, schema, registry);
                         signals_ ~= signal_;
+
+                        subregistry.add(signal_);
                     }
                 }
                 return;
