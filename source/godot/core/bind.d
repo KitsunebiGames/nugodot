@@ -297,7 +297,7 @@ void gde_bind_const(T, alias memberName)() @nogc {
     } else {
 
         // Manifest constants and consts
-        p_enumname = gde_make_string_name(__traits(identifier, member));
+        p_enumname = gde_make_string_name(null);
         p_constname = gde_make_string_name(toScreamingSnakeCase!(__traits(identifier, member)));
         p_value = cast(GDExtensionInt)__traits(getMember, T, memberName);
         classdb_register_extension_class_integer_constant(__godot_class_library, p_classname, p_enumname, p_constname, p_value, false);
