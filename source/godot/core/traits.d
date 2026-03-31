@@ -79,6 +79,22 @@ template godotNameOf(alias symbol, bool recursive) {
 }
 
 /**
+    Gets the instantiable godot base class of a given class.
+*/
+template godotBaseOf(T)
+if (is(T : GDEObject)) {
+    static if (isGodotNativeClass!T) {
+    
+        alias godotBaseOf = T;
+    } else static if (is(T PT == super)) {
+        static if (__traits(isAbstractClass, PT))
+            alias godotBaseOf = godotBaseOf!PT;
+        else
+            alias godotBaseOf = PT;
+    }
+}
+
+/**
     Gets the equivalent wrapped type of a native D type.
 
     Params:

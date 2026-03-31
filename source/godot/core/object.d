@@ -167,16 +167,8 @@ if (is(T : GDEObject)) {
     static if (is(T PT == super)) {
         static if (!__traits(isAbstractClass, T)) {
 
-            static if (is(isGodotNativeClass!T)) {
-
-                // Construct the native class
-                void* p_object = gde_class_construct(classNameOf!T);
-
-            } else {
-
-                // Construct the super class
-                void* p_object = gde_class_construct(classNameOf!PT);
-            }
+            // Construct the native class
+            void* p_object = gde_class_construct(classNameOf!(godotBaseOf!T));
 
             // Construct the class instance.
             T p_instance = gde_class_alloc_empty!T();
@@ -234,7 +226,7 @@ GDExtensionObjectPtr gde_class_construct(string classname) @nogc nothrow {
 */
 T gde_class_alloc_empty(T)() @system @nogc {
     T obj = cast(T)nu_malloc(AllocSize!T);
-    nu_memcpy(cast(void*)obj, __traits(initSymbol, T).ptr, __traits(initSymbol, T).length);
+    nu_memcpy(reinterpret_cast!(void*)(obj), __traits(initSymbol, T).ptr, __traits(initSymbol, T).length);
     return obj;
 }
 

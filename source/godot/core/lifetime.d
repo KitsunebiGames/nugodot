@@ -29,8 +29,11 @@ import godot.ref_counted;
         A new object of the given type.
 */
 Ref!T gd_new(T, Args...)(Args args) @trusted @nogc {
-    static if (is(T : GDEObject)) {
-        static assert(!hasUDA!(T, gd_non_instantiable), T.stringof~" is not instantiable!");
+    static assert(!hasUDA!(T, gd_non_instantiable), T.stringof~" is not instantiable!");
+    static if (is(T : RefCounted)) {
+        auto p_object = gde_alloc_class!T();
+        return gde_ref(p_object);
+    } static if (is(T : GDEObject)) {
         return gde_alloc_class!T();
     } else {
         Ref!T mem = cast(Ref!T)nu_malloc(AllocSize!T, true);
