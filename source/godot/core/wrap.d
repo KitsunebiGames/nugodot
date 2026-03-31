@@ -401,9 +401,12 @@ Variant gde_wrap(T)(T value) @nogc {
         value = The value to unwrap.
 */
 T gde_unwrap(T)(auto ref Variant value) @nogc {
-    T result;
-    gde_from_varptr(cast(GDExtensionVariantPtr)&value, result);
-    return result;
+    if (cast(GDExtensionVariantType)value.type == variantTypeOf!T) {
+        T result;
+        gde_from_varptr(cast(GDExtensionVariantPtr)&value, result);
+        return result;
+    }
+    return T.init;
 }
 
 /**
@@ -413,7 +416,34 @@ T gde_unwrap(T)(auto ref Variant value) @nogc {
         value = The value to unwrap.
 */
 T gde_unwrap(T)(GDExtensionVariantPtr value) @nogc {
-    T result;
-    gde_from_varptr(value, result);
-    return result;
+    if (value is null)
+        return T.init;
+
+    if (variant_get_type(value) == variantTypeOf!T) {
+        T result;
+        gde_from_varptr(value, result);
+        return result;
+    }
+    return T.init;
+}
+
+/**
+    Ensures the given value is initialized to a sane
+    value for Godot's internals.
+
+    Params:
+        value = The value to base initialize if neccesary.
+*/
+pragma(inline, true)
+void gde_ensure_valid(T)(ref T value) {
+    static if (is(T == TypedArray!U, U...)) {
+        if (value == T.init)
+            value = T.makeNew();
+    } else static if (is(T == TypedDictionary!U, U...)) {
+        if (value == T.init)
+            value = T.makeNew();
+    } else static if (is(T == PackedArray!U, U...)) {
+        if (value == T.init)
+            value = T.makeNew();
+    }
 }

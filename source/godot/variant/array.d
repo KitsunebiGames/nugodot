@@ -588,6 +588,13 @@ public:
     @property const(T)* ptr() => cast(const(T)*)ptr_idx_func(&this, 0);
 
     /**
+        Makes a new instance of the given packed array.
+    */
+    static typeof(this) makeNew() {
+        return typeof(this)(0);
+    }
+
+    /**
         Constructs a new packed array with a given amount of elements
         reserved.
 

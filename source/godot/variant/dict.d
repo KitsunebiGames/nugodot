@@ -54,6 +54,15 @@ public:
     @property TypedArray!TValue values() => gde_bcall_builtin!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, "values", 4144163970, TypedArray!TValue)(&this);
 
     /**
+        Makes a new instance of the given dictionary type.
+    */
+    static typeof(this) makeNew() {
+        typeof(this) value;
+        gde_bcall_ctor!(GDEXTENSION_VARIANT_TYPE_DICTIONARY, 0)(&value);
+        return value;
+    }
+
+    /**
         Constructs an RID from a variant.
 
         Params:

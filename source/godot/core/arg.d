@@ -9,6 +9,7 @@
 module godot.core.arg;
 import godot.core.gdextension.iface;
 import godot.core.object;
+import godot.core.wrap;
 import godot.variant;
 import numem.core.traits;
 import numem;
@@ -22,6 +23,8 @@ import numem;
 */
 pragma(inline, true)
 void gde_to_varptr(T)(ref T source, inout(GDExtensionVariantPtr) target) @nogc {
+    gde_ensure_valid(source);
+
     static if (is(T == bool)) {
 
         // bool
@@ -139,6 +142,8 @@ void gde_to_varptr(T)(ref T source, inout(GDExtensionVariantPtr) target) @nogc {
 */
 pragma(inline, true)
 void gde_to_ptr(T)(ref T source, ref inout(GDExtensionTypePtr) target) @nogc {
+    gde_ensure_valid(source);
+
     static if (is(T == bool)) {
 
         // bool

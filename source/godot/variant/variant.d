@@ -49,6 +49,15 @@ public:
     }
 
     /**
+        Makes a nil variant.
+    */
+    static Variant makeNil() {
+        Variant value;
+        variant_new_nil(&value);
+        return value;
+    }
+
+    /**
         Constructs a variant from a compatible type.
 
         Params:
