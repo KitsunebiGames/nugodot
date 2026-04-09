@@ -91,6 +91,14 @@ public:
         this.file = file;
     }
 
+    ~this() {
+        try {
+            this.close();
+        } catch (Exception) {
+            // Ignore close failures during cleanup.
+        }
+    }
+
     /**
         Pushes indentation to the indentation stack.
 
@@ -221,6 +229,14 @@ public:
     void flush() {
         if (file.isOpen)
             file.write(this.toString());
+    }
+
+    /**
+        Closes the backing file handle.
+    */
+    void close() {
+        if (file.isOpen)
+            file.close();
     }
 
     /**
