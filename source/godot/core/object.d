@@ -319,9 +319,11 @@ T gde_class_get_or_bind(T)(inout(GDExtensionObjectPtr) p_object) @system @nogc {
 void gde_class_assign(T)(inout(GDExtensionObjectPtr) p_object, T p_instance) @system @nogc {
     // Refer to our D object in the Godot instance.
     StringName* p_classname = gde_make_string_name(classNameOf!T);
-    static if (!isGodotNativeClass!T)
+    static if (!isGodotNativeClass!T) {
         object_set_instance(cast(GDExtensionObjectPtr)p_object, p_classname, cast(void*)p_instance);
-    object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
+        if (object_get_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, null) is null)
+            object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
+    }
     gde_free_string_name(p_classname);
 
     // Refer back to our object in our bound instance.
