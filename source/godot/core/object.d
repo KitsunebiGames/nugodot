@@ -322,7 +322,7 @@ void gde_class_assign(T)(inout(GDExtensionObjectPtr) p_object, T p_instance) @sy
     static if (!isGodotNativeClass!T) {
         object_set_instance(cast(GDExtensionObjectPtr)p_object, p_classname, cast(void*)p_instance);
         if (object_get_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, null) is null)
-    object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
+            object_set_instance_binding(cast(GDExtensionObjectPtr)p_object, __godot_class_library, cast(void*)p_instance, &__nu_gde_instance_callbacks!T);
     }
     gde_free_string_name(p_classname);
 
