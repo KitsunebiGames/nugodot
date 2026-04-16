@@ -262,6 +262,203 @@ GDExtensionInt gde_opcall(GDExtensionPtrOperatorEvaluator p_op, GDExtensionConst
 
 
 
+
+//
+//              D-TO-GODOT CALL HELPERS
+//
+
+/**
+    Wraps the given function in a godot varcall wrapper.
+
+    Note:
+        Delegates passed **must** be class method members.
+        The context pointer will be replaced by the instance pointer
+        from Godot.
+
+    Params:
+        p_func =            The function to call.
+        p_instance =        Class instance.
+        p_args =            Arguments to pass to the function
+        p_argument_count =  Amount of arguments.
+        r_return =          Return value.
+        r_error =           Error value.
+*/
+extern(C) void gde_d_varcall(FuncT)(void* p_func, void* p_instance, const(GDExtensionConstVariantPtr)* p_args, GDExtensionInt p_argument_count, GDExtensionVariantPtr r_return, GDExtensionCallError* r_error) @nogc {
+    static if (is(FuncT == delegate)) {
+
+        //
+        //                  DELEGATE IMPL
+        //
+        alias ReturnType = returnTypeOf!FuncT;
+        alias Params = parametersOf!(typeof(FuncT.funcptr));
+        alias FnT = ReturnType function(Params) @nogc nothrow;
+
+        if (p_argument_count < Params.length) {
+
+            // Too few args
+            r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+            r_error.expected = Params.length;
+            return;
+        }
+
+        if (p_argument_count > Params.length) {
+
+            // Too many arguments.
+            r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+            r_error.expected = Params.length;
+            return;
+        }
+
+        // Unwrap the arguments into ones that the DLang side understands.
+        Params p_params;
+        p_params[0] = cast(typeof(Params[0]))p_instance;
+        static foreach(i; 1..Params.length) {
+            gde_from_varptr!(Params[i])(p_args[i-1], p_params[i]);
+        }
+        
+        // Invalid instance.
+        if (!p_instance) {
+            r_error.error = GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL;
+            return;
+        }
+
+        // Wrap the return value to something that Godot understands, if needed.
+        static if (!is(ReturnType == void)) {
+            
+            auto d_return = (cast(FnT)p_func)(p_params);
+            gde_to_varptr(d_return, r_return);
+        } else {
+
+            (cast(FnT)p_func)(p_params);
+        }
+
+    } else static if (is(FuncT == function)) {
+
+        //
+        //                  FUNCTION IMPL
+        //
+        alias ReturnType = returnTypeOf!FuncT;
+        alias Params = parametersOf!FuncT;
+        alias FnT = ReturnType function(Params) @nogc nothrow;
+
+        if (p_argument_count < Params.length) {
+
+            // Too few args
+            r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+            r_error.expected = Params.length;
+            return;
+        }
+
+        if (p_argument_count > Params.length) {
+
+            // Too many arguments.
+            r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+            r_error.expected = Params.length;
+            return;
+        }
+
+        // Unwrap the arguments into ones that the DLang side understands.
+        Params p_params;
+        static foreach(i; 0..Params.length) {
+            gde_from_varptr!(Params[i])(p_args[i], p_params[i]);
+        }
+        
+        // Invalid instance.
+        if (!p_instance) {
+            r_error.error = GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL;
+            return;
+        }
+
+        // Wrap the return value to something that Godot understands, if needed.
+        static if (!is(ReturnType == void)) {
+            
+            auto d_return = (cast(FnT)p_func)(p_params);
+            gde_to_varptr(d_return, r_return);
+        } else {
+
+            (cast(FnT)p_func)(p_params);
+        }
+    } else {
+        static assert(0, "p_func is not a function.");
+    }
+}
+
+/**
+    Wraps a given method of a class with a godot ptrcall wrapper.
+
+    Note:
+        Delegates passed **must** be class method members.
+        The context pointer will be replaced by the instance pointer
+        from Godot.
+
+    Params:
+        p_func =            The function to call.
+        p_instance =        Class instance.
+        p_args =            Arguments to pass to the function
+        r_return =          Return value.
+*/
+extern(C) void gde_d_ptrcall(FuncT)(void* p_func, void* p_instance, const(GDExtensionConstTypePtr)* p_args, GDExtensionTypePtr r_return) @nogc
+if(isSomeFunction!FuncT) {
+    static if (is(FuncT == delegate)) {
+
+        //
+        //                  DELEGATE IMPL
+        //
+        alias ReturnType = returnTypeOf!FuncT;
+        alias Params = parametersOf!(typeof(FuncT.funcptr));
+        alias FnT = ReturnType function(Params) @nogc nothrow;
+
+        // Get parameters.
+        Params p_params;
+        p_params[0] = cast(typeof(Params[0]))p_instance;
+        static foreach(i; 1..Params.length) {
+            gde_from_ptr(p_args[i-1], p_params[i]);
+        }
+
+        // Call.
+        static if (!is(ReturnType == void)) {
+
+            auto d_return = (cast(FnT)p_func)(p_params);
+            gde_to_ptr(d_return, r_return);
+        } else {
+
+            (cast(FnT)p_func)(p_params);
+        }
+
+
+    } else static if (is(FuncT == function)) {
+
+        //
+        //                  FUNCTION IMPL
+        //
+        alias ReturnType = returnTypeOf!FuncT;
+        alias Params = parametersOf!FuncT;
+        alias FnT = ReturnType function(Params) @nogc nothrow;
+
+        // Get parameters.
+        Params p_params;
+        static foreach(i; 0..Params.length) {
+            gde_from_ptr(p_args[i], p_params[i]);
+        }
+
+        // Call.
+        static if (!is(ReturnType == void)) {
+
+            auto d_return = (cast(FnT)p_func)(p_params);
+            gde_to_ptr(d_return, r_return);
+        } else {
+
+            (cast(FnT)p_func)(p_params);
+        }
+    } else {
+        static assert(0, "p_func is not a function.");
+    }
+}
+
+
+
+
+
 //
 //              BIND-AND-CALL HELPERS
 //

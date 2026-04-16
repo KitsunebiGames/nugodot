@@ -18,6 +18,8 @@ import godot.resource;
 
 import numem.core.hooks : nu_malloc, nu_free;
 import numem : nogc_new, nogc_delete;
+import godot.core.bind.method;
+import godot.core.bind.property;
 
 /**
     Binds a class and registers it with Godot.
@@ -131,13 +133,13 @@ void gde_bind_ctors(T)() @nogc {
 
 void gde_bind_member(T, alias member)() @nogc
 if (is(T : GDEObject)) {
-    static if (isSignal!(T, member)) {
+    static if (isSignal!(__traits(getMember, T, member))) {
         gde_bind_signal!(T, member);
-    } else static if (isConstant!(T, member)) {
+    } else static if (isConstant!(__traits(getMember, T, member))) {
         gde_bind_const!(T, member);
-    } else static if (isPropertyFunc!(T, member)) {
+    } else static if (isProperty!(__traits(getMember, T, member))) {
         gde_bind_property!(T, member);
-    } else static if (isMethod!(T, member)) {
+    } else static if (isMethod!(__traits(getMember, T, member))) {
         gde_bind_method!(T, __traits(getMember, T, member))();
     } else {
         pragma(msg, "Could not bind "~member.stringof~"...");
@@ -171,109 +173,71 @@ if (is(T : GDEObject)) {
 
 void gde_bind_method(T, alias method)(string name = null) @nogc
 if (is(T : GDEObject)) {
-    enum paramCount = parametersOf!(method).length;
-    enum methodName = methodNameOf!method;
-
-    StringName* p_classname = gde_make_string_name(classNameOf!T);
-    StringName* p_methodname = gde_make_string_name(name ? name : methodName);
-    GDExtensionClassMethodArgumentMetadata[paramCount] p_param_metas;
-    GDExtensionPropertyInfo[paramCount] p_params;
-    GDExtensionClassMethodArgumentMetadata p_return_meta;
-    GDExtensionPropertyInfo p_return;
-    GDExtensionClassMethodFlags p_methodflags = 
-        cast(GDExtensionClassMethodFlags)methodFlagsOf!(method);
-
-    // Fill out parameters.
-    alias paramNames = parameterNamesOf!method;
-    static foreach(int i, param; parametersOf!method) {
-        p_params[i] = gde_make_property_info!(param)(toSnakeCase!(paramNames[i]));
-    }
-    p_return = gde_make_property_info!(returnTypeOf!method)("");
+    string methodName = name ? name : methodNameOf!method;
 
     static if (__traits(isFinalFunction, method) || __traits(isStaticFunction, method)) {
-
-        // Final & static functions.
-        GDExtensionClassMethodInfo p_methodinfo = GDExtensionClassMethodInfo(
-            name: p_methodname,
-            call_func: gde_wrap_varcall!(T, method)(),
-            ptrcall_func: gde_wrap_ptrcall!(T, method)(),
-            method_flags: cast(uint)p_methodflags,
-            has_return_value: !is(returnTypeOf!method == void),
-            return_value_info: &p_return,
-            return_value_metadata: p_return_meta,
-            argument_count: cast(int)paramCount,
-            arguments_info: p_params.ptr,
-            arguments_metadata: p_param_metas.ptr,
-        );
-        classdb_register_extension_class_method(__godot_class_library, p_classname, &p_methodinfo);
-
+        
+        // Bind non-virtual function.
+        auto fn = gde_get_func_instance!(T, method);
+        gde_classdb_register_method!(T, FunctionTypeOf!fn)(methodName, fn);
     } else {
 
-        // Virtual functions.
-        GDExtensionClassVirtualMethodInfo p_virtualinfo = GDExtensionClassVirtualMethodInfo(
-            name: p_methodname,
-            method_flags: cast(uint)p_methodflags,
-            return_value: p_return,
-            return_value_metadata: p_return_meta,
-            argument_count: cast(int)paramCount,
-            arguments: p_params.ptr,
-            arguments_metadata: p_param_metas.ptr,
-        );
-        classdb_register_extension_class_virtual_method(__godot_class_library, p_classname, &p_virtualinfo);
+        // Bind virtual function.
+        gde_classdb_register_virtual_method!(T, FunctionTypeOf!method)(methodName);
     }
-
-    // Clean up parameters.
-    static foreach(i; 0..paramCount)
-        gde_destroy_property_info(p_params[i]);
-    gde_destroy_property_info(p_return);
-    gde_free_string_name(p_methodname);
-    gde_free_string_name(p_classname);
 }
 
 void gde_bind_property(T, alias memberName)() @nogc {
-    enum gdMemberName = toSnakeCase!(memberName);
+    // enum gdMemberName = toSnakeCase!(memberName);
+    // alias propType = getPropertyType!(T, memberName);
+    // alias propFuncs = getPropertyFunctions!(T, memberName);
 
-    alias propType = getPropertyType!(T, memberName);
-    alias propFuncs = getPropertyFunctions!(T, memberName);
-    enum propHasGetter = !is(propFuncs[0] == void);
-    enum propHasSetter = !is(propFuncs[1] == void);
+    // enum propHasGetter = !is(propFuncs[0] == void);
+    // enum propHasSetter = !is(propFuncs[1] == void);
 
-    alias memberRef = __traits(getMember, T, memberName);
-    
-    static if (propHasGetter) {
-        enum getterName = "_get_"~gdMemberName;
-        gde_bind_method!(T, propFuncs[0])(getterName);
-    } else {
-        enum getterName = "";
-    }
+    // static if (propHasGetter || propHasSetter) {
+    //     alias memberRef = __traits(getMember, T, memberName);
+        
+    //     static if (propHasGetter) {
+    //         enum getterName = "_get_"~gdMemberName;
+    //         gde_bind_method!(T, propFuncs[0])(getterName);
+    //     } else {
+    //         enum getterName = "";
+    //     }
 
-    static if (propHasSetter) {
-        enum setterName = "_set_"~gdMemberName;
-        gde_bind_method!(T, propFuncs[1])(setterName);
-    } else {
-        enum setterName = "";
-    }
+    //     static if (propHasSetter) {
+    //         enum setterName = "_set_"~gdMemberName;
+    //         gde_bind_method!(T, propFuncs[1])(setterName);
+    //     } else {
+    //         enum setterName = "";
+    //     }
 
-    StringName* p_classname = gde_make_string_name(classNameOf!T);
-    StringName* p_getter_name = gde_make_string_name(getterName);
-    StringName* p_setter_name = gde_make_string_name(setterName);
-    
-    // Get the property exports.
-    static if (propHasGetter && hasPropertyExport!(propFuncs[0])) {
-        enum propExport = getPropertyExport!(propFuncs[0]);
-    } else static if (propHasSetter && hasPropertyExport!(propFuncs[1])) {
-        enum propExport = getPropertyExport!(propFuncs[1]);
-    } else {
-        enum propExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR);
-    }
+    //     StringName* p_classname = gde_make_string_name(classNameOf!T);
+    //     StringName* p_getter_name = gde_make_string_name(getterName);
+    //     StringName* p_setter_name = gde_make_string_name(setterName);
+        
+    //     // Get the property exports.
+    //     static if (propHasGetter && hasPropertyExport!(propFuncs[0])) {
+    //         enum propExport = getPropertyExport!(propFuncs[0]);
+    //     } else static if (propHasSetter && hasPropertyExport!(propFuncs[1])) {
+    //         enum propExport = getPropertyExport!(propFuncs[1]);
+    //     } else {
+    //         enum propExport = gd_export_custom(PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR);
+    //     }
 
-    auto p_prop_info = gde_make_property_info!propType(gdMemberName, propExport.hint, propExport.hintString, propExport.flags);
-    classdb_register_extension_class_property(__godot_class_library, p_classname, &p_prop_info, p_setter_name, p_getter_name);
-    gde_destroy_property_info(p_prop_info);
+    //     auto p_prop_info = gde_make_property_info!propType(gdMemberName, propExport.hint, propExport.hintString, propExport.flags);
+    //     classdb_register_extension_class_property(__godot_class_library, p_classname, &p_prop_info, p_setter_name, p_getter_name);
+    //     gde_destroy_property_info(p_prop_info);
 
-    gde_free_string_name(p_getter_name);
-    gde_free_string_name(p_setter_name);
-    gde_free_string_name(p_classname);
+    //     gde_free_string_name(p_getter_name);
+    //     gde_free_string_name(p_setter_name);
+    //     gde_free_string_name(p_classname);
+    // } else {
+
+    //     // Auto-generated getters and setters.
+        
+    // }
+    gde_classdb_register_property!(T, memberName)();
 }
 
 void gde_bind_const(T, alias memberName)() @nogc {

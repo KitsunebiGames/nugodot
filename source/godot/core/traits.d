@@ -253,14 +253,51 @@ if (is(T : GDEObject)) {
 }
 
 /**
-    Gets whether the given function is a property function.
+    Gets whether the given symbol is a property.
 
     Params:
-        func = Alias to the function to test.
+        symbol = The symbol to check.
 */
-template isPropertyFunc(T, alias func) {
-    enum isPropertyAttrib(string attrib) = attrib == "@property";
-    enum isPropertyFunc = isMethod!(T, func) && Filter!(isPropertyAttrib, __traits(getFunctionAttributes, __traits(getMember, T, func))).length != 0;
+template isProperty(alias symbol) {
+    import godot.variant;
+
+    static if (is(typeof(symbol)) && isVariant!(typeof(symbol))) {
+
+        // NOTE:    Signal definitions are *not* properties, but are instead handled
+        //          specially by the binding layer; only property functions may encode
+        //          signal references.
+        enum isProperty = !is(typeof(symbol) == Signal!U, U...);
+    } else {
+
+        // Unsupported type.
+        enum isProperty = false;
+    }
+}
+
+/**
+    Wraps a function as a method delegate with the first argument
+    being the type of the class instance.
+
+    Params:
+        p_func = The function to call.
+*/
+auto toMethodDelegate(FuncT)(auto ref FuncT p_func) @nogc @trusted 
+if (isSomeFunction!FuncT) {
+    alias ReturnT = returnTypeOf!FuncT;
+    alias ParamT = parametersOf!FuncT;
+    
+    union FakeDelegate {
+        ReturnT delegate(ParamT[1..$]) @nogc nothrow dg;
+
+        struct {
+            void* ctxptr;
+            void* funcptr;
+        }
+    }
+    
+    FakeDelegate p_dg;
+    p_dg.funcptr = cast(void*)p_func;
+    return p_dg.dg;
 }
 
 /**
@@ -270,28 +307,22 @@ template isPropertyFunc(T, alias func) {
         T =     The class to check
         func =  Name of the member
 */
-template isMethod(T, string member) {
-    enum isMethod = is(typeof(__traits(getMember, T, member)) == return) ||
-        is(FunctionTypeOf!(__traits(getMember, T, member)) == return);
+template isMethod(alias symbol) {
+    enum isMethod = is(typeof(symbol) == return) ||
+        is(FunctionTypeOf!(symbol) == return);
 }
 
 /**
     Gets whether the given member is a godot constant.
 
     Params:
-        T =     The class to check
-        func =  Name of the member
+        symbol = The symbol to check.
 */
-template isConstant(T, string member) {
-    static if (is(__traits(getMember, T, member)))
-        alias MT = __traits(getMember, T, member);
-    else
-        alias MT = typeof(__traits(getMember, T, member));
-
-    static if (is(MT MTY == enum)) {
-        enum isConstant = __traits(isIntegral, MTY);
-    } else static if (is(typeof(() => __traits(getMember, T, member)))) {
-        enum isConstant = __traits(isIntegral, MT);
+template isConstant(alias symbol) {
+    static if (is(symbol == enum)) {
+        enum isConstant = __traits(isIntegral, symbol);
+    } else static if (is(typeof(symbol)) && is(typeof(symbol) == const(MT), MT)) {
+        enum isConstant = __traits(isIntegral, typeof(symbol));
     } else {
         enum isConstant = false;
     }
@@ -304,9 +335,10 @@ template isConstant(T, string member) {
         T =         The owning class of the member.
         member =    Name of the member
 */
-template isSignal(T, string member) {
+template isSignal(alias symbol) {
     import godot.variant : Signal;
-    enum isSignal = is(typeof(__traits(getMember, T, member)) == Signal!U, U...);
+    
+    enum isSignal = is(typeof(symbol) == Signal!U, U...);
 }
 
 /**
@@ -447,14 +479,24 @@ if (is(T : GDEObject)) {
 */
 template boundMembersOf(T) 
 if (is(T : GDEObject)) {
-    template isAllowedMember(alias memberName) {
-        enum visibility = __traits(getVisibility, __traits(getMember, T, memberName));
-
-        enum isVisible = (visibility == "public" || visibility == "export" || visibility == "protected") && !hasUDA!(__traits(getMember, T, memberName), gd_hide);
-        enum isAllowedName = memberName[0..nu_min(2, memberName.length)] != "__";
-        enum isAllowedMember = isVisible && isAllowedName;
+    template isVisible(alias symbol) {
+        enum visibility = __traits(getVisibility, symbol);
+        enum isVisible = (visibility == "public" || visibility == "export" || visibility == "protected") && !hasUDA!(symbol, gd_hide);
     }
-    alias boundMembersOf = Filter!(isAllowedMember, __traits(derivedMembers, T));
+
+    template isAllowedMember(alias memberName) {
+        enum isAllowedName = memberName[0..nu_min(2, memberName.length)] != "__";
+        enum isAllowedMember = isVisible!(__traits(getMember, T, memberName)) && isAllowedName;
+    }
+    template isAllowedProperty(alias propertyName) {
+        static if (isProperty!(__traits(getMember, T, propertyName))) {
+            enum isAllowedProperty = isVisible!(__traits(getMember, T, propertyName));
+        } else {
+            enum isAllowedProperty = false;
+        }
+    }
+
+    alias boundMembersOf = AliasSeq!(Filter!(isAllowedMember, __traits(derivedMembers, T)), Filter!(isAllowedProperty, __traits(derivedMembers, T)));
 }
 
 /**
@@ -533,9 +575,7 @@ template parametersOf(alias symbol) {
         An alias sequence of parameter names.
 */
 template parameterNamesOf(alias symbol) {
-    static if (is(FunctionTypeOf!(mixin(symbol)) PT == __parameters))
-        alias parameterNamesOf = parameterNamesOf!(mixin(symbol));
-    else static if (is(FunctionTypeOf!symbol PT == __parameters)) {
+    static if (is(FunctionTypeOf!symbol PT == __parameters)) {
         alias parameterNamesOf = AliasSeq!();
         static foreach(int i; 0..PT.length) {
             static if (is(typeof(__traits(identifier, PT[i .. i+1]))) && PT[i].stringof != PT[i .. i+1].stringof[1..$-1]) {
